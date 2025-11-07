@@ -1,0 +1,10 @@
+node_modules/
+.env
+*.sqlite
+baileys_auth_info/
+auth_info_baileys/
+*.log
+.DS_Store
+client/node_modules/
+client/build/
+
