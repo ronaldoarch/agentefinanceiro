@@ -8,11 +8,8 @@ services:
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - PORT=3005
-      - DB_PATH=/app/data/database.sqlite
+      - DB_PATH=/app/database.sqlite
       - ALERTA_GASTO_ALTO=500
       - ALERTA_LIMITE_MENSAL=3000
-    volumes:
-      - ./data:/app/data
-      - ./auth_info_baileys:/app/auth_info_baileys
     restart: unless-stopped
 
