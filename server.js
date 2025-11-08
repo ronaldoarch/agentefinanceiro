@@ -39,7 +39,8 @@ wss.on('connection', (ws) => {
 });
 
 // Inicializar WhatsApp
-whatsappService.initialize();
+// DESABILITADO TEMPORARIAMENTE - Conecte manualmente pela interface
+// whatsappService.initialize();
 
 // ================== ROTAS API ==================
 
