@@ -43,7 +43,12 @@ function App() {
     const interval = setInterval(carregarDados, 30000);
 
     // WebSocket para atualizações em tempo real
-    const ws = new WebSocket(`ws://${window.location.hostname}:3005`);
+    // Usar wss:// se a página estiver em https://, senão ws://
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    // Conectar através do mesmo host/porta que a aplicação web (através do proxy)
+    const wsUrl = `${protocol}//${window.location.host}`;
+    console.log('Conectando WebSocket:', wsUrl);
+    const ws = new WebSocket(wsUrl);
     
     ws.onopen = () => {
       console.log('WebSocket conectado');
