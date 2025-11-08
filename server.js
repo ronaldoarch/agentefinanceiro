@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const path = require('path');
 const whatsappService = require('./services/whatsapp');
 const db = require('./services/database');
 const WebSocket = require('ws');
@@ -199,6 +200,11 @@ global.notifyClients = (data) => {
     }
   });
 };
+
+// Rota catch-all - Serve o index.html do React para todas as rotas não-API
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+});
 
 console.log('✅ Servidor iniciado com sucesso!');
 console.log('📊 Acesse o painel em: http://localhost:' + PORT);
