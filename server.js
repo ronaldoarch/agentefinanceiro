@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
+const fs = require('fs');
 const whatsappService = require('./services/whatsapp');
 const db = require('./services/database');
 const WebSocket = require('ws');
@@ -13,7 +14,22 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static('client/build'));
+
+// Servir arquivos estáticos do React
+const buildPath = path.join(__dirname, 'client', 'build');
+const indexPath = path.join(buildPath, 'index.html');
+
+console.log(`📁 Servindo arquivos estáticos de: ${buildPath}`);
+
+// Verificar se o build existe
+if (fs.existsSync(indexPath)) {
+  console.log(`✅ Frontend build encontrado: ${indexPath}`);
+} else {
+  console.log(`❌ AVISO: Frontend build não encontrado em ${indexPath}`);
+  console.log(`❌ A interface web não vai funcionar!`);
+}
+
+app.use(express.static(buildPath));
 
 // Inicializar banco de dados
 db.init();

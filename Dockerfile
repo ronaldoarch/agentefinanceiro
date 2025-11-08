@@ -17,8 +17,12 @@ COPY . .
 
 # Build do frontend
 WORKDIR /app/client
-RUN npm install
+RUN npm install --legacy-peer-deps
 RUN npm run build
+
+# Verificar se o build foi criado
+RUN ls -la /app/client/build || echo "❌ BUILD FALHOU!"
+RUN test -f /app/client/build/index.html || (echo "❌ index.html não encontrado!" && exit 1)
 
 # Voltar para raiz
 WORKDIR /app
