@@ -23,6 +23,9 @@ RUN npm run build
 # Voltar para raiz
 WORKDIR /app
 
+# Criar diretório para dados e garantir permissões
+RUN mkdir -p /app/data && chmod 777 /app/data
+
 # Expor porta
 EXPOSE 3005
 

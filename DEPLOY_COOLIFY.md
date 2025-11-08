@@ -70,10 +70,20 @@ ALERTA_GASTO_ALTO=500
 ALERTA_LIMITE_MENSAL=3000
 ```
 
-#### 3.5 - Volumes Persistentes
+#### 3.5 - Volumes Persistentes ⚠️ IMPORTANTE
 Configure volumes para não perder dados:
-- `/app/data` → Banco de dados
-- `/app/auth_info_baileys` → Sessão WhatsApp
+
+**Volume 1 - Banco de Dados:**
+- **Host Path ou Volume Name:** `agente-data` (ou deixe o Coolify criar automaticamente)
+- **Container Path:** `/app/data`
+- **Descrição:** Armazena o banco de dados SQLite
+
+**Volume 2 - Autenticação WhatsApp:**
+- **Host Path ou Volume Name:** `agente-auth` (ou deixe o Coolify criar automaticamente)
+- **Container Path:** `/app/auth_info_baileys`
+- **Descrição:** Mantém sua sessão do WhatsApp conectada
+
+⚠️ **SEM ESTES VOLUMES, VOCÊ PERDERÁ TODOS OS DADOS AO FAZER REDEPLOY!**
 
 #### 3.6 - Deploy!
 - Clique em **"Deploy"**
@@ -167,9 +177,23 @@ No Coolify: **Re-deploy** automático ou manual
 
 ## 🆘 **Troubleshooting no Coolify:**
 
+### ⚠️ Erro: "Cannot open database because the directory does not exist"
+**Solução:** Já corrigido! A aplicação agora cria automaticamente os diretórios necessários.
+
+Se ainda assim o erro persistir:
+1. Verifique que `DB_PATH=/app/data/database.sqlite` está nas variáveis de ambiente
+2. Certifique-se de que os volumes estão configurados
+3. Faça um redeploy limpo:
+   - No Coolify: Stop → Deploy
+
+Para mais detalhes, veja: `SOLUCAO_ERRO_DATABASE.md`
+
 ### Ver Logs:
 - Dashboard → Logs
-- Procure por: `📱 QR CODE GERADO!`
+- Procure por:
+  - `✅ Banco de dados inicializado`
+  - `📱 QR CODE GERADO!`
+  - `🚀 Servidor rodando na porta 3005`
 
 ### Reiniciar Container:
 - Dashboard → Restart

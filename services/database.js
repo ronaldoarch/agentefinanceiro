@@ -1,5 +1,6 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
 const moment = require('moment');
 
 const DB_PATH = process.env.DB_PATH || './database.sqlite';
@@ -7,6 +8,13 @@ let db;
 
 // Inicializar banco de dados
 function init() {
+  // Criar diretório se não existir
+  const dbDir = path.dirname(DB_PATH);
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+    console.log(`📁 Diretório criado: ${dbDir}`);
+  }
+  
   db = new Database(DB_PATH);
   
   // Criar tabelas
