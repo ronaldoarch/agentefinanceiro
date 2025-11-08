@@ -10,7 +10,11 @@ function WhatsAppControl({ whatsappStatus, onStatusChange }) {
 
   // WebSocket e polling para receber QR Code
   useEffect(() => {
-    const ws = new WebSocket(`ws://${window.location.hostname}:3005`);
+    // Usar wss:// se a página estiver em https://, senão ws://
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}`;
+    console.log('WhatsApp WebSocket:', wsUrl);
+    const ws = new WebSocket(wsUrl);
     
     ws.onmessage = (event) => {
       try {
