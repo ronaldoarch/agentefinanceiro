@@ -97,6 +97,86 @@
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
+.header-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-name {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+.user-plan {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.user-plan.plan-free {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.user-plan.plan-premium {
+  background: #fff3e0;
+  color: #f57c00;
+}
+
+.user-plan.plan-enterprise {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-admin,
+.btn-logout {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-admin {
+  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  color: #333;
+}
+
+.btn-admin:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(255, 215, 0, 0.4);
+}
+
+.btn-logout {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.btn-logout:hover {
+  background: #ef4444;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+}
+
 @media (max-width: 768px) {
   .header-content {
     flex-direction: column;
@@ -105,6 +185,12 @@
 
   .header-left h1 {
     font-size: 24px;
+  }
+
+  .header-info {
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
   }
 
   .nav-tabs {
@@ -117,6 +203,17 @@
     min-width: 100px;
     font-size: 14px;
     padding: 10px 16px;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .btn-admin,
+  .btn-logout {
+    font-size: 13px;
+    padding: 8px 16px;
   }
 }
 

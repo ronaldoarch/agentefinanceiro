@@ -1,14 +1,58 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import './App.css';
+import { useAuth } from './context/AuthContext';
+import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import Transacoes from './components/Transacoes';
 import Alertas from './components/Alertas';
 import Header from './components/Header';
 import WhatsAppControl from './components/WhatsAppControl';
 import Chat from './components/Chat';
+import AdminDashboard from './components/admin/AdminDashboard';
 
-function App() {
+// Componente para proteger rotas
+function PrivateRoute({ children }) {
+  const { isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Verificando autenticação...</p>
+      </div>
+    );
+  }
+  
+  return isAuthenticated ? children : <Navigate to="/login" />;
+}
+
+// Componente para rotas de admin
+function AdminRoute({ children }) {
+  const { isAuthenticated, isAdmin, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Verificando autenticação...</p>
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+  
+  if (!isAdmin) {
+    return <Navigate to="/" />;
+  }
+  
+  return children;
+}
+
+function MainApp() {
   const [resumo, setResumo] = useState(null);
   const [transacoes, setTransacoes] = useState([]);
   const [alertas, setAlertas] = useState([]);
@@ -131,6 +175,49 @@ function App() {
         )}
       </div>
     </div>
+  );
+}
+
+// Componente principal com rotas
+function App() {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Carregando...</p>
+      </div>
+    );
+  }
+
+  return (
+    <Routes>
+      <Route 
+        path="/login" 
+        element={
+          isAuthenticated ? <Navigate to="/" /> : <Login />
+        } 
+      />
+      
+      <Route 
+        path="/admin" 
+        element={
+          <AdminRoute>
+            <AdminDashboard />
+          </AdminRoute>
+        } 
+      />
+      
+      <Route 
+        path="/" 
+        element={
+          <PrivateRoute>
+            <MainApp />
+          </PrivateRoute>
+        } 
+      />
+    </Routes>
   );
 }
 
