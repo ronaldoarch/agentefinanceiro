@@ -12,7 +12,7 @@ function Upgrade({ onClose }) {
 
   const plans = {
     basico: {
-      name: 'Básico',
+      name: '💰 Básico',
       price: 15.00,
       features: [
         '100 transações/mês',
@@ -22,7 +22,7 @@ function Upgrade({ onClose }) {
       ]
     },
     premium: {
-      name: 'Premium',
+      name: '⭐ Premium',
       price: 39.90,
       popular: true,
       features: [
@@ -34,7 +34,7 @@ function Upgrade({ onClose }) {
       ]
     },
     enterprise: {
-      name: 'Enterprise',
+      name: '🏢 Enterprise',
       price: 99.90,
       features: [
         'Transações ilimitadas',
