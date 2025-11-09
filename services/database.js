@@ -72,6 +72,32 @@ function init() {
       audio_transcription TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      plan TEXT NOT NULL, -- 'basico', 'premium', 'enterprise'
+      amount REAL NOT NULL,
+      status TEXT DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
+      payment_method TEXT DEFAULT 'pix',
+      transaction_id TEXT,
+      approved_by INTEGER, -- admin user_id que aprovou
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      approved_at TEXT,
+      expires_at TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      plan TEXT NOT NULL,
+      status TEXT DEFAULT 'active', -- 'active', 'cancelled', 'expired'
+      started_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      expires_at TEXT,
+      cancelled_at TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
   `);
 
   // Inserir categorias padrão se não existirem
@@ -349,6 +375,84 @@ function clearChatHistory(userId) {
   return stmt.run(userId);
 }
 
+// ================== FUNÇÕES DE PAGAMENTO ==================
+
+// Criar pagamento
+function createPayment(userId, plan, amount) {
+  const stmt = db.prepare(`
+    INSERT INTO payments (user_id, plan, amount)
+    VALUES (?, ?, ?)
+  `);
+  
+  const result = stmt.run(userId, plan, amount);
+  return result.lastInsertRowid;
+}
+
+// Aprovar pagamento
+function approvePayment(paymentId, adminId, transactionId = null) {
+  const stmt = db.prepare(`
+    UPDATE payments 
+    SET status = 'approved', 
+        approved_by = ?, 
+        approved_at = CURRENT_TIMESTAMP,
+        transaction_id = ?
+    WHERE id = ?
+  `);
+  
+  return stmt.run(adminId, transactionId, paymentId);
+}
+
+// Listar pagamentos pendentes
+function getPendingPayments() {
+  const stmt = db.prepare(`
+    SELECT p.*, u.name, u.email 
+    FROM payments p
+    JOIN users u ON p.user_id = u.id
+    WHERE p.status = 'pending'
+    ORDER BY p.created_at DESC
+  `);
+  
+  return stmt.all();
+}
+
+// Listar todos os pagamentos
+function getAllPayments(limit = 100) {
+  const stmt = db.prepare(`
+    SELECT p.*, u.name, u.email 
+    FROM payments p
+    JOIN users u ON p.user_id = u.id
+    ORDER BY p.created_at DESC
+    LIMIT ?
+  `);
+  
+  return stmt.all(limit);
+}
+
+// Criar/Atualizar assinatura
+function createSubscription(userId, plan, expiresAt) {
+  const stmt = db.prepare(`
+    INSERT INTO subscriptions (user_id, plan, expires_at)
+    VALUES (?, ?, ?)
+  `);
+  
+  const result = stmt.run(userId, plan, expiresAt);
+  return result.lastInsertRowid;
+}
+
+// Verificar assinatura ativa
+function getActiveSubscription(userId) {
+  const stmt = db.prepare(`
+    SELECT * FROM subscriptions 
+    WHERE user_id = ? 
+      AND status = 'active'
+      AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+    ORDER BY created_at DESC
+    LIMIT 1
+  `);
+  
+  return stmt.get(userId);
+}
+
 module.exports = {
   init,
   addTransacao,
@@ -372,6 +476,13 @@ module.exports = {
   getAllUsers,
   updateUserPlan,
   toggleUserActive,
-  getAdminStats
+  getAdminStats,
+  // Funções de pagamento
+  createPayment,
+  approvePayment,
+  getPendingPayments,
+  getAllPayments,
+  createSubscription,
+  getActiveSubscription
 };
 

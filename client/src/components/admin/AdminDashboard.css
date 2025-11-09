@@ -107,7 +107,49 @@
   font-weight: 700;
 }
 
-/* Seção de Usuários */
+/* Admin Tabs */
+.admin-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.admin-tab {
+  padding: 12px 24px;
+  border: 2px solid #e0e0e0;
+  background: white;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-tab:hover {
+  border-color: #667eea;
+  background: #f5f7fa;
+}
+
+.admin-tab.active {
+  border-color: #667eea;
+  background: #667eea;
+  color: white;
+}
+
+.badge-notification {
+  background: #ef4444;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* Seção de Pagamentos */
+.payments-section,
 .users-section {
   background: white;
   border-radius: 12px;
@@ -115,6 +157,74 @@
   margin-bottom: 40px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
+
+.payments-table-container {
+  overflow-x: auto;
+}
+
+.payments-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.payments-table thead {
+  background: #f5f7fa;
+}
+
+.payments-table th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #666;
+  font-size: 0.9rem;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.payments-table td {
+  padding: 15px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.payments-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.payment-amount {
+  font-weight: 700;
+  color: #667eea;
+  font-size: 1.1rem !important;
+}
+
+.btn-approve {
+  background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-approve:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(86, 171, 47, 0.4);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #999;
+}
+
+.empty-state p {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+/* Seção de Usuários */
 
 .users-section h2 {
   margin: 0 0 25px 0;

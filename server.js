@@ -4,6 +4,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
 const fs = require('fs');
+const moment = require('moment');
 const multer = require('multer');
 const whatsappService = require('./services/whatsapp');
 const db = require('./services/database');
@@ -126,6 +127,57 @@ app.post('/api/auth/logout', (req, res) => {
   });
 });
 
+// ================== ROTAS DE PAGAMENTO ==================
+
+// Solicitar upgrade (criar pagamento pendente)
+app.post('/api/payments/request', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { plan } = req.body;
+    
+    // Definir preços
+    const prices = {
+      basico: 15.00,
+      premium: 39.90,
+      enterprise: 99.90
+    };
+    
+    if (!prices[plan]) {
+      return res.status(400).json({ error: 'Plano inválido' });
+    }
+    
+    // Criar pagamento pendente
+    const paymentId = db.createPayment(userId, plan, prices[plan]);
+    
+    res.json({
+      success: true,
+      payment_id: paymentId,
+      plan: plan,
+      amount: prices[plan],
+      message: 'Pagamento criado. Faça o PIX e aguarde aprovação.'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Listar meus pagamentos
+app.get('/api/payments/my', requireAuth, (req, res) => {
+  try {
+    const userId = req.user.id;
+    const stmt = db.db.prepare(`
+      SELECT * FROM payments 
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+    `);
+    
+    const payments = stmt.all(userId);
+    res.json(payments);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ================== ROTAS DE ADMINISTRADOR ==================
 
 // Estatísticas gerais
@@ -179,6 +231,63 @@ app.put('/api/admin/users/:id/toggle-active', requireAuth, requireAdmin, (req, r
     res.json({
       success: true,
       message: 'Status do usuário atualizado'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Listar pagamentos pendentes
+app.get('/api/admin/payments/pending', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const payments = db.getPendingPayments();
+    res.json(payments);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Listar todos os pagamentos
+app.get('/api/admin/payments', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const payments = db.getAllPayments(200);
+    res.json(payments);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Aprovar pagamento
+app.post('/api/admin/payments/:id/approve', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { transaction_id, plan } = req.body;
+    const adminId = req.user.id;
+    
+    // Buscar pagamento
+    const payment = db.db.prepare('SELECT * FROM payments WHERE id = ?').get(id);
+    
+    if (!payment) {
+      return res.status(404).json({ error: 'Pagamento não encontrado' });
+    }
+    
+    if (payment.status !== 'pending') {
+      return res.status(400).json({ error: 'Pagamento já foi processado' });
+    }
+    
+    // Aprovar pagamento
+    db.approvePayment(id, adminId, transaction_id);
+    
+    // Atualizar plano do usuário
+    db.updateUserPlan(payment.user_id, plan || payment.plan);
+    
+    // Criar assinatura (30 dias)
+    const expiresAt = moment().add(30, 'days').format('YYYY-MM-DD HH:mm:ss');
+    db.createSubscription(payment.user_id, plan || payment.plan, expiresAt);
+    
+    res.json({
+      success: true,
+      message: 'Pagamento aprovado e plano atualizado!'
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

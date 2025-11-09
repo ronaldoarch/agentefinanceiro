@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Upgrade from './Upgrade';
 import './Header.css';
 
 function Header({ whatsappStatus, activeTab, setActiveTab }) {
   const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   function handleLogout() {
     if (window.confirm('Deseja realmente sair?')) {
@@ -71,6 +73,14 @@ function Header({ whatsappStatus, activeTab, setActiveTab }) {
         </nav>
 
         <div className="header-actions">
+          {user && user.plan !== 'enterprise' && (
+            <button 
+              className="btn-upgrade"
+              onClick={() => setShowUpgrade(true)}
+            >
+              💎 Upgrade
+            </button>
+          )}
           {isAdmin && (
             <button 
               className="btn-admin"
@@ -84,6 +94,8 @@ function Header({ whatsappStatus, activeTab, setActiveTab }) {
           </button>
         </div>
       </div>
+
+      {showUpgrade && <Upgrade onClose={() => setShowUpgrade(false)} />}
     </header>
   );
 }

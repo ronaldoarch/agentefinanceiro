@@ -6,8 +6,10 @@ import './AdminDashboard.css';
 function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
+  const [pendingPayments, setPendingPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState(null);
+  const [activeTab, setActiveTab] = useState('users'); // 'users' ou 'payments'
   const { user } = useAuth();
 
   useEffect(() => {
@@ -17,18 +19,36 @@ function AdminDashboard() {
   async function loadData() {
     try {
       setLoading(true);
-      const [statsRes, usersRes] = await Promise.all([
+      const [statsRes, usersRes, paymentsRes] = await Promise.all([
         axios.get('/api/admin/stats'),
-        axios.get('/api/admin/users')
+        axios.get('/api/admin/users'),
+        axios.get('/api/admin/payments/pending')
       ]);
 
       setStats(statsRes.data);
       setUsers(usersRes.data);
+      setPendingPayments(paymentsRes.data);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       alert('Erro ao carregar dados do admin');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleApprovePayment(paymentId, plan) {
+    try {
+      const transactionId = prompt('Digite o ID da transação PIX (opcional):');
+      
+      await axios.post(`/api/admin/payments/${paymentId}/approve`, {
+        transaction_id: transactionId,
+        plan: plan
+      });
+      
+      await loadData();
+      alert('Pagamento aprovado! Plano do usuário atualizado.');
+    } catch (error) {
+      alert('Erro ao aprovar pagamento');
     }
   }
 
@@ -129,9 +149,81 @@ function AdminDashboard() {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="admin-tabs">
+        <button 
+          className={`admin-tab ${activeTab === 'users' ? 'active' : ''}`}
+          onClick={() => setActiveTab('users')}
+        >
+          👥 Usuários ({users.length})
+        </button>
+        <button 
+          className={`admin-tab ${activeTab === 'payments' ? 'active' : ''}`}
+          onClick={() => setActiveTab('payments')}
+        >
+          💳 Pagamentos Pendentes {pendingPayments.length > 0 && <span className="badge-notification">{pendingPayments.length}</span>}
+        </button>
+      </div>
+
+      {/* Pagamentos Pendentes */}
+      {activeTab === 'payments' && (
+        <div className="payments-section">
+          <h2>💳 Pagamentos Pendentes</h2>
+
+          {pendingPayments.length === 0 ? (
+            <div className="empty-state">
+              <p>✅ Nenhum pagamento pendente</p>
+            </div>
+          ) : (
+            <div className="payments-table-container">
+              <table className="payments-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Usuário</th>
+                    <th>Email</th>
+                    <th>Plano</th>
+                    <th>Valor</th>
+                    <th>Data</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingPayments.map(payment => (
+                    <tr key={payment.id}>
+                      <td>#{payment.id}</td>
+                      <td><strong>{payment.name}</strong></td>
+                      <td>{payment.email}</td>
+                      <td>
+                        <span className={`badge badge-${payment.plan}`}>
+                          {payment.plan === 'basico' && 'Básico'}
+                          {payment.plan === 'premium' && 'Premium'}
+                          {payment.plan === 'enterprise' && 'Enterprise'}
+                        </span>
+                      </td>
+                      <td className="payment-amount">R$ {payment.amount.toFixed(2)}</td>
+                      <td>{new Date(payment.created_at).toLocaleString('pt-BR')}</td>
+                      <td>
+                        <button
+                          className="btn-approve"
+                          onClick={() => handleApprovePayment(payment.id, payment.plan)}
+                        >
+                          ✅ Aprovar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Lista de Usuários */}
-      <div className="users-section">
-        <h2>📋 Gerenciar Usuários</h2>
+      {activeTab === 'users' && (
+        <div className="users-section">
+          <h2>📋 Gerenciar Usuários</h2>
 
         <div className="users-table-container">
           <table className="users-table">
@@ -208,7 +300,8 @@ function AdminDashboard() {
             </tbody>
           </table>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Informações dos Planos */}
       <div className="plans-info">
