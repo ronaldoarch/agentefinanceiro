@@ -1,10 +1,12 @@
 node_modules
 .npm-cache
 auth_info_baileys
+data
 *.log
 .DS_Store
 client/node_modules
 client/build
 database.sqlite
+*.sqlite
 .env
 
