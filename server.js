@@ -514,38 +514,43 @@ app.post('/api/chat', requireAuth, async (req, res) => {
     }
     
     // SEMPRE tentar detectar transação PRIMEIRO
-    let transacaoDetectada = null;
-    let transacaoSalva = false;
+    let transacoesDetectadas = [];
+    let transacoesSalvas = [];
     
     try {
       console.log('🔍 Detectando se é uma transação...');
-      transacaoDetectada = await openaiService.detectarTransacao(message);
-      console.log('🔍 Resultado da detecção:', transacaoDetectada);
+      transacoesDetectadas = await openaiService.detectarTransacao(message);
+      console.log('🔍 Resultado da detecção:', transacoesDetectadas);
       
-      if (transacaoDetectada && transacaoDetectada.isTransacao) {
-        console.log('💰 TRANSAÇÃO DETECTADA!', transacaoDetectada);
+      if (transacoesDetectadas && transacoesDetectadas.length > 0) {
+        console.log(`💰 ${transacoesDetectadas.length} TRANSAÇÃO(ÕES) DETECTADA(S)!`);
         
-        // Salvar transação no banco com user_id
-        const transacaoId = await db.addTransacao(
-          userId, // IMPORTANTE: user_id do usuário autenticado
-          transacaoDetectada.tipo,
-          transacaoDetectada.valor,
-          transacaoDetectada.categoria,
-          transacaoDetectada.descricao,
-          `Chat IA: ${message}`
-        );
-        
-        console.log('✅ TRANSAÇÃO SALVA NO BANCO! ID:', transacaoId);
-        transacaoSalva = true;
-        
-        // Notificar clientes via WebSocket
-        if (global.notifyClients) {
-          global.notifyClients({
-            type: 'nova_transacao',
-            data: { id: transacaoId, userId: userId, ...transacaoDetectada }
-          });
-          console.log('📡 WebSocket notificado!');
+        // Salvar TODAS as transações no banco
+        for (const transacao of transacoesDetectadas) {
+          console.log('💰 Salvando:', transacao);
+          
+          const transacaoId = await db.addTransacao(
+            userId, // IMPORTANTE: user_id do usuário autenticado
+            transacao.tipo,
+            transacao.valor,
+            transacao.categoria,
+            transacao.descricao,
+            `Chat IA: ${message}`
+          );
+          
+          console.log('✅ TRANSAÇÃO SALVA NO BANCO! ID:', transacaoId);
+          transacoesSalvas.push({ id: transacaoId, ...transacao });
+          
+          // Notificar clientes via WebSocket
+          if (global.notifyClients) {
+            global.notifyClients({
+              type: 'nova_transacao',
+              data: { id: transacaoId, userId: userId, ...transacao }
+            });
+          }
         }
+        
+        console.log(`📡 ${transacoesSalvas.length} transações salvas e notificadas!`);
       } else {
         console.log('ℹ️ Não é uma transação, apenas conversa');
       }
@@ -588,9 +593,15 @@ app.post('/api/chat', requireAuth, async (req, res) => {
     const resposta = await openaiService.chatFinanceiro(mensagemComContexto, historico);
     console.log('✅ Resposta da IA recebida');
     
-    // Se salvou transação, adicionar confirmação
-    if (transacaoSalva && transacaoDetectada) {
-      const confirmacao = `\n\n✅ **Transação registrada automaticamente no sistema!**\n- Tipo: ${transacaoDetectada.tipo === 'receita' ? 'Receita' : 'Despesa'}\n- Valor: R$ ${transacaoDetectada.valor.toFixed(2)}\n- Categoria: ${transacaoDetectada.categoria}\n\n📊 **Veja no Dashboard agora!** (aba Dashboard acima)`;
+    // Se salvou transações, adicionar confirmação
+    if (transacoesSalvas.length > 0) {
+      let confirmacao = `\n\n✅ **${transacoesSalvas.length} transação(ões) registrada(s) automaticamente!**\n\n`;
+      
+      transacoesSalvas.forEach(t => {
+        confirmacao += `- ${t.tipo === 'receita' ? '💰' : '💸'} R$ ${t.valor.toFixed(2)} - ${t.descricao} (${t.categoria})\n`;
+      });
+      
+      confirmacao += `\n📊 **Veja no Dashboard agora!** (aba Dashboard acima)`;
       
       // Salvar resposta da IA com confirmação
       await db.addChatMessage(userId, 'assistant', resposta + confirmacao);
@@ -598,7 +609,7 @@ app.post('/api/chat', requireAuth, async (req, res) => {
       return res.json({ 
         success: true,
         message: resposta + confirmacao,
-        transacao: transacaoDetectada,
+        transacoes: transacoesSalvas,
         saved: true
       });
     }
@@ -658,35 +669,46 @@ app.post('/api/chat/audio', requireAuth, checkPlanLimit('audio_enabled'), upload
     const resposta = await openaiService.chatFinanceiro(transcricao, historico);
     console.log('✅ Resposta da IA recebida');
     
-    // Verificar se a mensagem é uma transação
+    // Verificar se a mensagem contém transações
     try {
-      const transacaoDetectada = await openaiService.detectarTransacao(transcricao);
+      const transacoesDetectadas = await openaiService.detectarTransacao(transcricao);
       
-      if (transacaoDetectada && transacaoDetectada.isTransacao) {
-        console.log('💰 Transação detectada (áudio):', transacaoDetectada);
+      if (transacoesDetectadas && transacoesDetectadas.length > 0) {
+        console.log(`💰 ${transacoesDetectadas.length} transação(ões) detectada(s) (áudio)`);
         
-        // Salvar transação no banco
-        const transacaoId = await db.addTransacao(
-          userId,
-          transacaoDetectada.tipo,
-          transacaoDetectada.valor,
-          transacaoDetectada.categoria,
-          transacaoDetectada.descricao,
-          `Chat IA (áudio): ${transcricao}`
-        );
+        const transacoesSalvas = [];
         
-        console.log('✅ Transação salva com ID:', transacaoId);
-        
-        // Notificar clientes via WebSocket
-        if (global.notifyClients) {
-          global.notifyClients({
-            type: 'nova_transacao',
-            data: { id: transacaoId, userId: userId, ...transacaoDetectada }
-          });
+        // Salvar TODAS as transações
+        for (const transacao of transacoesDetectadas) {
+          const transacaoId = await db.addTransacao(
+            userId,
+            transacao.tipo,
+            transacao.valor,
+            transacao.categoria,
+            transacao.descricao,
+            `Chat IA (áudio): ${transcricao}`
+          );
+          
+          console.log('✅ Transação salva com ID:', transacaoId);
+          transacoesSalvas.push({ id: transacaoId, ...transacao });
+          
+          // Notificar clientes via WebSocket
+          if (global.notifyClients) {
+            global.notifyClients({
+              type: 'nova_transacao',
+              data: { id: transacaoId, userId: userId, ...transacao }
+            });
+          }
         }
         
         // Adicionar confirmação à resposta
-        const confirmacao = `\n\n✅ **Transação registrada com sucesso!**\n- Tipo: ${transacaoDetectada.tipo}\n- Valor: R$ ${transacaoDetectada.valor.toFixed(2)}\n- Categoria: ${transacaoDetectada.categoria}\n\nVocê pode ver no Dashboard agora! 📊`;
+        let confirmacao = `\n\n✅ **${transacoesSalvas.length} transação(ões) registrada(s)!**\n\n`;
+        
+        transacoesSalvas.forEach(t => {
+          confirmacao += `- ${t.tipo === 'receita' ? '💰' : '💸'} R$ ${t.valor.toFixed(2)} - ${t.descricao}\n`;
+        });
+        
+        confirmacao += `\n📊 Veja no Dashboard agora!`;
         
         // Salvar resposta da IA com confirmação
         await db.addChatMessage(userId, 'assistant', resposta + confirmacao);
@@ -695,7 +717,7 @@ app.post('/api/chat/audio', requireAuth, checkPlanLimit('audio_enabled'), upload
           success: true,
           transcription: transcricao,
           message: resposta + confirmacao,
-          transacao: transacaoDetectada
+          transacoes: transacoesSalvas
         });
       }
     } catch (error) {

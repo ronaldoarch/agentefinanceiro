@@ -254,44 +254,52 @@ async function detectarTransacao(mensagem) {
       messages: [
         {
           role: "system",
-          content: `Analise a mensagem do usuário e determine se é uma transação financeira (receita ou despesa).
+          content: `Analise a mensagem do usuário e extraia TODAS as transações financeiras mencionadas.
 
-Se for uma transação, extraia:
-- isTransacao: true/false
-- tipo: "receita" ou "despesa"
-- valor: número decimal
-- categoria: uma das categorias válidas
-- descricao: descrição clara e concisa
+IMPORTANTE: Se houver MÚLTIPLAS transações na mensagem, retorne TODAS em um array.
+
+Formato de resposta:
+{
+  "transacoes": [
+    {
+      "tipo": "receita" ou "despesa",
+      "valor": número decimal,
+      "categoria": categoria válida,
+      "descricao": descrição clara
+    }
+  ]
+}
 
 Categorias válidas:
 Despesas: Alimentação, Transporte, Moradia, Saúde, Educação, Lazer, Compras, Contas, Outros
 Receitas: Salário, Freelance, Investimentos, Outros
 
-Exemplos de DESPESAS:
-"Gastei 50 reais no mercado" → {"isTransacao": true, "tipo": "despesa", "valor": 50, "categoria": "Alimentação", "descricao": "Compras no mercado"}
-"Paguei 150 de luz" → {"isTransacao": true, "tipo": "despesa", "valor": 150, "categoria": "Contas", "descricao": "Conta de luz"}
-"Uber de 25" → {"isTransacao": true, "tipo": "despesa", "valor": 25, "categoria": "Transporte", "descricao": "Uber"}
+Exemplos:
 
-Exemplos de RECEITAS:
-"Recebi 2000 do salário" → {"isTransacao": true, "tipo": "receita", "valor": 2000, "categoria": "Salário", "descricao": "Salário mensal"}
-"Freelance de 500" → {"isTransacao": true, "tipo": "receita", "valor": 500, "categoria": "Freelance", "descricao": "Pagamento freelance"}
-"Ganhei 100 reais" → {"isTransacao": true, "tipo": "receita", "valor": 100, "categoria": "Outros", "descricao": "Receita"}
-"Recebi 3000" → {"isTransacao": true, "tipo": "receita", "valor": 3000, "categoria": "Outros", "descricao": "Receita"}
+UMA transação:
+"Gastei 50 no mercado" → {"transacoes": [{"tipo": "despesa", "valor": 50, "categoria": "Alimentação", "descricao": "Compras no mercado"}]}
 
-Palavras-chave para RECEITA:
-- recebi, receber, ganhei, ganhar, salário, freelance, pagamento recebido, venda, lucro
+MÚLTIPLAS transações:
+"Aluguel 800, água 150, energia 150, babá 400" → {"transacoes": [
+  {"tipo": "despesa", "valor": 800, "categoria": "Moradia", "descricao": "Aluguel"},
+  {"tipo": "despesa", "valor": 150, "categoria": "Contas", "descricao": "Conta de água"},
+  {"tipo": "despesa", "valor": 150, "categoria": "Contas", "descricao": "Conta de energia"},
+  {"tipo": "despesa", "valor": 400, "categoria": "Outros", "descricao": "Babá"}
+]}
 
-Palavras-chave para DESPESA:
-- gastei, gastar, paguei, pagar, comprei, comprar, despesa, custo
+"Recebi 3000 de salário" → {"transacoes": [{"tipo": "receita", "valor": 3000, "categoria": "Salário", "descricao": "Salário mensal"}]}
 
-Exemplos que NÃO são transações:
-"Como faço para economizar?" → {"isTransacao": false}
-"Quanto gastei este mês?" → {"isTransacao": false}
+Não é transação:
+"Como economizar?" → {"transacoes": []}
 
-IMPORTANTE: 
-- Responda APENAS com JSON válido, sem texto adicional
-- Seja PRECISO na identificação de tipo (receita vs despesa)
-- Use as palavras-chave para identificar corretamente`
+Palavras-chave para RECEITA: recebi, receber, ganhei, ganhar, salário, freelance
+Palavras-chave para DESPESA: gastei, gastar, paguei, pagar, comprei, comprar, aluguel, conta
+
+REGRAS:
+- Se não houver transações, retorne array vazio
+- Extraia TODAS as transações mencionadas
+- Seja PRECISO no tipo (receita vs despesa)
+- Responda APENAS com JSON válido`
         },
         {
           role: "user",
@@ -304,21 +312,21 @@ IMPORTANTE:
 
     const resultado = JSON.parse(completion.choices[0].message.content);
     
-    if (resultado.isTransacao && resultado.valor && resultado.tipo) {
-      return {
-        isTransacao: true,
-        tipo: resultado.tipo,
-        valor: parseFloat(resultado.valor),
-        categoria: resultado.categoria || 'Outros',
-        descricao: resultado.descricao || mensagem
-      };
+    if (resultado.transacoes && Array.isArray(resultado.transacoes) && resultado.transacoes.length > 0) {
+      // Retornar array de transações
+      return resultado.transacoes.map(t => ({
+        tipo: t.tipo,
+        valor: parseFloat(t.valor),
+        categoria: t.categoria || 'Outros',
+        descricao: t.descricao || mensagem
+      }));
     }
 
-    return { isTransacao: false };
+    return []; // Retorna array vazio se não houver transações
 
   } catch (error) {
     console.error('❌ Erro ao detectar transação:', error.message);
-    return { isTransacao: false };
+    return [];
   }
 }
 
