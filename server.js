@@ -371,9 +371,17 @@ app.get('/api/transacoes/periodo', requireAuth, (req, res) => {
 app.get('/api/resumo', requireAuth, (req, res) => {
   try {
     const userId = req.user.id;
+    console.log(`📊 API /api/resumo - Buscando resumo para usuário ${userId}`);
+    
     const resumo = db.getResumo(userId);
+    console.log(`📊 Resumo calculado:`, resumo);
+    console.log(`   Receitas: R$ ${resumo.receitas.toFixed(2)}`);
+    console.log(`   Despesas: R$ ${resumo.despesas.toFixed(2)}`);
+    console.log(`   Saldo: R$ ${resumo.saldo.toFixed(2)}`);
+    
     res.json(resumo);
   } catch (error) {
+    console.error('❌ Erro ao buscar resumo:', error);
     res.status(500).json({ error: error.message });
   }
 });
