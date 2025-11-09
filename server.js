@@ -8,6 +8,8 @@ const multer = require('multer');
 const whatsappService = require('./services/whatsapp');
 const db = require('./services/database');
 const openaiService = require('./services/openai');
+const authService = require('./services/auth');
+const { requireAuth, requireAdmin, checkPlanLimit } = require('./middleware/auth');
 const WebSocket = require('ws');
 
 const app = express();
@@ -42,6 +44,11 @@ app.use(express.static(buildPath));
 // Inicializar banco de dados
 db.init();
 
+// Criar usuário admin se não existir
+authService.createAdminUser().catch(err => {
+  console.error('Erro ao criar admin:', err);
+});
+
 // Criar servidor WebSocket para atualizações em tempo real
 const server = app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
@@ -68,6 +75,117 @@ wss.on('connection', (ws) => {
 // whatsappService.initialize();
 
 // ================== ROTAS API ==================
+
+// ================== ROTAS DE AUTENTICAÇÃO ==================
+
+// Registro
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { email, password, name } = req.body;
+    
+    const result = await authService.register(email, password, name);
+    
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Login
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    const result = await authService.login(email, password);
+    
+    res.json(result);
+  } catch (error) {
+    res.status(401).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Obter dados do usuário atual
+app.get('/api/auth/me', requireAuth, (req, res) => {
+  res.json({
+    success: true,
+    user: req.user
+  });
+});
+
+// Logout (apenas limpa o token no cliente)
+app.post('/api/auth/logout', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Logout realizado com sucesso'
+  });
+});
+
+// ================== ROTAS DE ADMINISTRADOR ==================
+
+// Estatísticas gerais
+app.get('/api/admin/stats', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const stats = db.getAdminStats();
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Listar todos os usuários
+app.get('/api/admin/users', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const users = db.getAllUsers();
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Atualizar plano do usuário
+app.put('/api/admin/users/:id/plan', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { plan } = req.body;
+    
+    if (!['free', 'premium', 'enterprise'].includes(plan)) {
+      return res.status(400).json({ error: 'Plano inválido' });
+    }
+    
+    db.updateUserPlan(id, plan);
+    
+    res.json({
+      success: true,
+      message: 'Plano atualizado com sucesso'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Ativar/Desativar usuário
+app.put('/api/admin/users/:id/toggle-active', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    db.toggleUserActive(id);
+    
+    res.json({
+      success: true,
+      message: 'Status do usuário atualizado'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ================== ROTAS PROTEGIDAS (REQUEREM AUTH) ==================
 
 // Status do WhatsApp
 app.get('/api/whatsapp/status', (req, res) => {
