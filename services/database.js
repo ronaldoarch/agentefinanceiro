@@ -8,14 +8,33 @@ let db;
 
 // Inicializar banco de dados
 function init() {
+  console.log('🔍 DB_PATH configurado:', DB_PATH);
+  console.log('🔍 Diretório atual:', __dirname);
+  
   // Criar diretório se não existir
   const dbDir = path.dirname(DB_PATH);
+  console.log('🔍 Diretório do banco:', dbDir);
+  
   if (!fs.existsSync(dbDir)) {
     fs.mkdirSync(dbDir, { recursive: true });
     console.log(`📁 Diretório criado: ${dbDir}`);
+  } else {
+    console.log(`✅ Diretório já existe: ${dbDir}`);
   }
   
+  // Verificar se banco existe antes
+  const dbExists = fs.existsSync(DB_PATH);
+  console.log(dbExists ? `✅ Banco de dados encontrado: ${DB_PATH}` : `🆕 Criando novo banco: ${DB_PATH}`);
+  
   db = new Database(DB_PATH);
+  
+  // Verificar tamanho do arquivo
+  try {
+    const stats = fs.statSync(DB_PATH);
+    console.log(`📊 Tamanho do banco: ${(stats.size / 1024).toFixed(2)} KB`);
+  } catch (e) {
+    console.log('⚠️ Não foi possível verificar tamanho do banco');
+  }
   
   // Criar tabelas
   db.exec(`
@@ -125,11 +144,25 @@ function init() {
     insertCategoria.run(cat.nome, cat.tipo, cat.icone, cat.cor);
   });
 
+  // Verificar quantos registros existem
+  const countUsers = db.prepare('SELECT COUNT(*) as count FROM users').get();
+  const countTransacoes = db.prepare('SELECT COUNT(*) as count FROM transacoes').get();
+  const countChat = db.prepare('SELECT COUNT(*) as count FROM chat_messages').get();
+  
   console.log('✅ Banco de dados inicializado');
+  console.log(`📊 Registros no banco:`);
+  console.log(`   - Usuários: ${countUsers.count}`);
+  console.log(`   - Transações: ${countTransacoes.count}`);
+  console.log(`   - Mensagens de chat: ${countChat.count}`);
+  console.log(`🔒 Caminho do banco: ${DB_PATH}`);
+  console.log(`📁 Banco está em volume persistente? ${DB_PATH.includes('/app/data') ? '✅ SIM' : '❌ NÃO - DADOS VÃO SER PERDIDOS!'}`);
 }
 
 // Adicionar transação
 function addTransacao(userId, tipo, valor, categoria, descricao, mensagemOriginal) {
+  console.log(`💾 SALVANDO TRANSAÇÃO no banco: ${DB_PATH}`);
+  console.log(`   User ID: ${userId}, Tipo: ${tipo}, Valor: R$ ${valor}`);
+  
   const stmt = db.prepare(`
     INSERT INTO transacoes (user_id, tipo, valor, categoria, descricao, data, mensagem_original)
     VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -138,11 +171,19 @@ function addTransacao(userId, tipo, valor, categoria, descricao, mensagemOrigina
   const data = moment().format('YYYY-MM-DD HH:mm:ss');
   const result = stmt.run(userId, tipo, valor, categoria, descricao, data, mensagemOriginal);
   
+  console.log(`✅ TRANSAÇÃO SALVA! ID: ${result.lastInsertRowid}`);
+  
+  // Verificar se foi realmente salva
+  const verificar = db.prepare('SELECT COUNT(*) as count FROM transacoes WHERE user_id = ?').get(userId);
+  console.log(`📊 Total de transações do usuário ${userId}: ${verificar.count}`);
+  
   return result.lastInsertRowid;
 }
 
 // Obter todas as transações
 function getTransacoes(userId, limit = 100) {
+  console.log(`🔍 BUSCANDO transações do usuário ${userId} no banco: ${DB_PATH}`);
+  
   const stmt = db.prepare(`
     SELECT * FROM transacoes 
     WHERE user_id = ?
@@ -150,7 +191,14 @@ function getTransacoes(userId, limit = 100) {
     LIMIT ?
   `);
   
-  return stmt.all(userId, limit);
+  const transacoes = stmt.all(userId, limit);
+  console.log(`📊 Encontradas ${transacoes.length} transações para usuário ${userId}`);
+  
+  if (transacoes.length > 0) {
+    console.log(`   Primeira transação: R$ ${transacoes[0].valor} - ${transacoes[0].descricao}`);
+  }
+  
+  return transacoes;
 }
 
 // Obter transações por período
