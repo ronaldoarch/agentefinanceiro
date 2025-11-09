@@ -316,28 +316,30 @@ app.get('/api/health', (req, res) => {
 // ================== ROTAS DE CHAT ==================
 
 // Enviar mensagem de texto no chat
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', requireAuth, async (req, res) => {
   try {
     console.log('📝 Chat: Recebendo mensagem de texto');
     const { message } = req.body;
+    const userId = req.user.id;
     
     if (!message) {
       return res.status(400).json({ error: 'Mensagem é obrigatória' });
     }
 
     console.log('📝 Mensagem:', message);
+    console.log('👤 User ID:', userId);
 
     // Verificar se openaiService está disponível
     if (!openaiService || !openaiService.chatFinanceiro) {
       throw new Error('Serviço OpenAI não disponível');
     }
 
-    // Buscar histórico
-    const historico = db.getChatHistory(20);
+    // Buscar histórico do usuário
+    const historico = db.getChatHistory(userId, 20);
     console.log('📚 Histórico carregado:', historico.length, 'mensagens');
     
     // Salvar mensagem do usuário
-    db.addChatMessage('user', message);
+    db.addChatMessage(userId, 'user', message);
     
     // Obter resposta da IA
     console.log('🤖 Processando com IA...');
@@ -374,7 +376,7 @@ app.post('/api/chat', async (req, res) => {
         const confirmacao = `\n\n✅ **Transação registrada com sucesso!**\n- Tipo: ${transacaoDetectada.tipo}\n- Valor: R$ ${transacaoDetectada.valor.toFixed(2)}\n- Categoria: ${transacaoDetectada.categoria}\n\nVocê pode ver no Dashboard agora! 📊`;
         
         // Salvar resposta da IA com confirmação
-        db.addChatMessage('assistant', resposta + confirmacao);
+        db.addChatMessage(userId, 'assistant', resposta + confirmacao);
         
         return res.json({ 
           success: true,
@@ -388,7 +390,7 @@ app.post('/api/chat', async (req, res) => {
     }
     
     // Salvar resposta da IA
-    db.addChatMessage('assistant', resposta);
+    db.addChatMessage(userId, 'assistant', resposta);
     
     res.json({ 
       success: true,
@@ -405,15 +407,17 @@ app.post('/api/chat', async (req, res) => {
 });
 
 // Enviar áudio no chat
-app.post('/api/chat/audio', upload.single('audio'), async (req, res) => {
+app.post('/api/chat/audio', requireAuth, checkPlanLimit('audio_enabled'), upload.single('audio'), async (req, res) => {
   try {
     console.log('🎤 Chat: Recebendo áudio');
+    const userId = req.user.id;
     
     if (!req.file) {
       return res.status(400).json({ error: 'Arquivo de áudio é obrigatório' });
     }
 
     console.log('🎤 Áudio recebido:', req.file.originalname, req.file.size, 'bytes');
+    console.log('👤 User ID:', userId);
     
     // Verificar se openaiService está disponível
     if (!openaiService || !openaiService.transcreverAudio || !openaiService.chatFinanceiro) {
@@ -429,11 +433,11 @@ app.post('/api/chat/audio', upload.single('audio'), async (req, res) => {
     
     console.log('📝 Transcrição:', transcricao);
     
-    // Buscar histórico
-    const historico = db.getChatHistory(20);
+    // Buscar histórico do usuário
+    const historico = db.getChatHistory(userId, 20);
     
     // Salvar mensagem do usuário com transcrição
-    db.addChatMessage('user', transcricao, transcricao);
+    db.addChatMessage(userId, 'user', transcricao, transcricao);
     
     // Obter resposta da IA
     console.log('🤖 Processando com IA...');
@@ -470,7 +474,7 @@ app.post('/api/chat/audio', upload.single('audio'), async (req, res) => {
         const confirmacao = `\n\n✅ **Transação registrada com sucesso!**\n- Tipo: ${transacaoDetectada.tipo}\n- Valor: R$ ${transacaoDetectada.valor.toFixed(2)}\n- Categoria: ${transacaoDetectada.categoria}\n\nVocê pode ver no Dashboard agora! 📊`;
         
         // Salvar resposta da IA com confirmação
-        db.addChatMessage('assistant', resposta + confirmacao);
+        db.addChatMessage(userId, 'assistant', resposta + confirmacao);
         
         return res.json({ 
           success: true,
@@ -485,7 +489,7 @@ app.post('/api/chat/audio', upload.single('audio'), async (req, res) => {
     }
     
     // Salvar resposta da IA
-    db.addChatMessage('assistant', resposta);
+    db.addChatMessage(userId, 'assistant', resposta);
     
     res.json({ 
       success: true,
@@ -503,9 +507,10 @@ app.post('/api/chat/audio', upload.single('audio'), async (req, res) => {
 });
 
 // Obter histórico de chat
-app.get('/api/chat/history', (req, res) => {
+app.get('/api/chat/history', requireAuth, (req, res) => {
   try {
-    const history = db.getChatHistory(100);
+    const userId = req.user.id;
+    const history = db.getChatHistory(userId, 100);
     res.json(history);
   } catch (error) {
     console.error('Erro ao buscar histórico:', error);
@@ -514,9 +519,10 @@ app.get('/api/chat/history', (req, res) => {
 });
 
 // Limpar histórico de chat
-app.delete('/api/chat/history', (req, res) => {
+app.delete('/api/chat/history', requireAuth, (req, res) => {
   try {
-    db.clearChatHistory();
+    const userId = req.user.id;
+    db.clearChatHistory(userId);
     res.json({ success: true, message: 'Histórico limpo com sucesso' });
   } catch (error) {
     console.error('Erro ao limpar histórico:', error);
