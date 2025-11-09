@@ -322,12 +322,42 @@ IMPORTANTE:
   }
 }
 
+// Detectar se quer deletar uma transação
+async function detectarDelecao(mensagem) {
+  try {
+    // Palavras-chave simples para deletar
+    const keywords = ['apagar', 'apague', 'deletar', 'delete', 'remover', 'remova', 'excluir', 'exclua'];
+    const temKeyword = keywords.some(k => mensagem.toLowerCase().includes(k));
+    
+    if (!temKeyword) {
+      return { isDelecao: false };
+    }
+    
+    // Extrair valor usando regex
+    const valorMatch = mensagem.match(/(\d+[\.,]?\d*)/);
+    
+    if (valorMatch) {
+      const valor = parseFloat(valorMatch[1].replace(',', '.'));
+      return {
+        isDelecao: true,
+        valor: valor
+      };
+    }
+    
+    return { isDelecao: false };
+  } catch (error) {
+    console.error('Erro ao detectar deleção:', error);
+    return { isDelecao: false };
+  }
+}
+
 module.exports = {
   processarMensagemFinanceira,
   gerarResumo,
   analisarPadroesEAlertas,
   transcreverAudio,
   chatFinanceiro,
-  detectarTransacao
+  detectarTransacao,
+  detectarDelecao
 };
 

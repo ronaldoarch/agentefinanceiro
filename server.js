@@ -455,6 +455,37 @@ app.post('/api/chat', requireAuth, async (req, res) => {
     // Salvar mensagem do usuário
     db.addChatMessage(userId, 'user', message);
     
+    // Verificar se quer deletar uma transação
+    const delecaoDetectada = await openaiService.detectarDelecao(message);
+    if (delecaoDetectada && delecaoDetectada.isDelecao) {
+      console.log('🗑️ DELEÇÃO DETECTADA! Valor:', delecaoDetectada.valor);
+      
+      const deletado = db.deleteLastTransacaoByValor(userId, delecaoDetectada.valor);
+      
+      if (deletado) {
+        const confirmacao = `✅ **Transação de R$ ${delecaoDetectada.valor.toFixed(2)} removida com sucesso!**\n\n📊 Veja a atualização no Dashboard.`;
+        db.addChatMessage(userId, 'assistant', confirmacao);
+        
+        // Notificar WebSocket
+        if (global.notifyClients) {
+          global.notifyClients({
+            type: 'transacao_deletada',
+            data: { userId: userId, valor: delecaoDetectada.valor }
+          });
+        }
+        
+        return res.json({
+          success: true,
+          message: confirmacao,
+          deleted: true
+        });
+      } else {
+        const erro = `❌ Não encontrei transação de R$ ${delecaoDetectada.valor.toFixed(2)} para remover.`;
+        db.addChatMessage(userId, 'assistant', erro);
+        return res.json({ success: true, message: erro });
+      }
+    }
+    
     // SEMPRE tentar detectar transação PRIMEIRO
     let transacaoDetectada = null;
     let transacaoSalva = false;
@@ -496,9 +527,38 @@ app.post('/api/chat', requireAuth, async (req, res) => {
       console.error('Stack:', error.stack);
     }
     
+    // Buscar dados reais do usuário para contexto
+    let contextoDados = '';
+    try {
+      const transacoesUsuario = db.getTransacoes(userId, 10);
+      const resumoUsuario = db.getResumo(userId);
+      
+      if (transacoesUsuario.length > 0 || resumoUsuario.receitas > 0 || resumoUsuario.despesas > 0) {
+        contextoDados = `\n\nDADOS REAIS DO USUÁRIO (não invente outros):\n`;
+        contextoDados += `Resumo do mês (${resumoUsuario.mes}):\n`;
+        contextoDados += `- Receitas: R$ ${resumoUsuario.receitas.toFixed(2)}\n`;
+        contextoDados += `- Despesas: R$ ${resumoUsuario.despesas.toFixed(2)}\n`;
+        contextoDados += `- Saldo: R$ ${resumoUsuario.saldo.toFixed(2)}\n\n`;
+        
+        if (transacoesUsuario.length > 0) {
+          contextoDados += `Últimas transações:\n`;
+          transacoesUsuario.forEach(t => {
+            contextoDados += `- ${t.tipo === 'receita' ? '💰 Receita' : '💸 Despesa'}: R$ ${t.valor.toFixed(2)} - ${t.descricao} (${t.categoria})\n`;
+          });
+        }
+        
+        contextoDados += `\nUSE APENAS ESTES DADOS REAIS. NÃO INVENTE VALORES!`;
+      }
+    } catch (error) {
+      console.error('Erro ao buscar contexto:', error);
+    }
+    
+    // Adicionar contexto à mensagem se for pergunta sobre dados
+    const mensagemComContexto = message + contextoDados;
+    
     // Obter resposta conversacional da IA
     console.log('🤖 Processando com IA...');
-    const resposta = await openaiService.chatFinanceiro(message, historico);
+    const resposta = await openaiService.chatFinanceiro(mensagemComContexto, historico);
     console.log('✅ Resposta da IA recebida');
     
     // Se salvou transação, adicionar confirmação

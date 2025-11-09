@@ -213,6 +213,44 @@ function getTransacoesPorPeriodo(userId, dataInicio, dataFim) {
   return stmt.all(userId, dataInicio, dataFim);
 }
 
+// Deletar transação
+function deleteTransacao(userId, transacaoId) {
+  console.log(`🗑️ DELETANDO transação ID: ${transacaoId} do usuário ${userId}`);
+  
+  const stmt = db.prepare(`
+    DELETE FROM transacoes 
+    WHERE id = ? AND user_id = ?
+  `);
+  
+  const result = stmt.run(transacaoId, userId);
+  console.log(`✅ Transação deletada! Linhas afetadas: ${result.changes}`);
+  
+  return result.changes > 0;
+}
+
+// Deletar última transação do usuário (por valor aproximado)
+function deleteLastTransacaoByValor(userId, valor) {
+  console.log(`🗑️ Buscando transação de R$ ${valor} para deletar...`);
+  
+  // Buscar transação mais recente com valor aproximado
+  const stmt = db.prepare(`
+    SELECT id FROM transacoes 
+    WHERE user_id = ? 
+      AND ABS(valor - ?) < 0.01
+    ORDER BY created_at DESC
+    LIMIT 1
+  `);
+  
+  const transacao = stmt.get(userId, valor);
+  
+  if (transacao) {
+    return deleteTransacao(userId, transacao.id);
+  }
+  
+  console.log(`⚠️ Transação de R$ ${valor} não encontrada`);
+  return false;
+}
+
 // Obter resumo financeiro
 function getResumo(userId) {
   const stmt = db.prepare(`
@@ -512,6 +550,8 @@ module.exports = {
   addTransacao,
   getTransacoes,
   getTransacoesPorPeriodo,
+  deleteTransacao,
+  deleteLastTransacaoByValor,
   getResumo,
   getResumoMensal,
   addAlerta,
