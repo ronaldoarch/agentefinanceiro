@@ -172,7 +172,7 @@ app.post('/api/payments/request', requireAuth, async (req, res) => {
     }
     
     // Criar pagamento pendente
-    const paymentId = db.createPayment(userId, plan, prices[plan]);
+    const paymentId = await db.createPayment(userId, plan, prices[plan]);
     
     res.json({
       success: true,
@@ -200,9 +200,9 @@ app.get('/api/payments/my', requireAuth, async (req, res) => {
 // ================== ROTAS DE ADMINISTRADOR ==================
 
 // Estatísticas gerais
-app.get('/api/admin/stats', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/stats', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const stats = db.getAdminStats();
+    const stats = await db.getAdminStats();
     res.json(stats);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -210,9 +210,9 @@ app.get('/api/admin/stats', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Listar todos os usuários
-app.get('/api/admin/users', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/users', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const users = db.getAllUsers();
+    const users = await db.getAllUsers();
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -220,7 +220,7 @@ app.get('/api/admin/users', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Atualizar plano do usuário
-app.put('/api/admin/users/:id/plan', requireAuth, requireAdmin, (req, res) => {
+app.put('/api/admin/users/:id/plan', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { plan } = req.body;
@@ -229,7 +229,7 @@ app.put('/api/admin/users/:id/plan', requireAuth, requireAdmin, (req, res) => {
       return res.status(400).json({ error: 'Plano inválido' });
     }
     
-    db.updateUserPlan(id, plan);
+    await db.updateUserPlan(id, plan);
     
     res.json({
       success: true,
@@ -241,11 +241,11 @@ app.put('/api/admin/users/:id/plan', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Ativar/Desativar usuário
-app.put('/api/admin/users/:id/toggle-active', requireAuth, requireAdmin, (req, res) => {
+app.put('/api/admin/users/:id/toggle-active', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     
-    db.toggleUserActive(id);
+    await db.toggleUserActive(id);
     
     res.json({
       success: true,
@@ -257,9 +257,9 @@ app.put('/api/admin/users/:id/toggle-active', requireAuth, requireAdmin, (req, r
 });
 
 // Listar pagamentos pendentes
-app.get('/api/admin/payments/pending', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/payments/pending', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const payments = db.getPendingPayments();
+    const payments = await db.getPendingPayments();
     res.json(payments);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -267,9 +267,9 @@ app.get('/api/admin/payments/pending', requireAuth, requireAdmin, (req, res) => 
 });
 
 // Listar todos os pagamentos
-app.get('/api/admin/payments', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/payments', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const payments = db.getAllPayments(200);
+    const payments = await db.getAllPayments(200);
     res.json(payments);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -364,10 +364,10 @@ app.get('/api/whatsapp/qr', (req, res) => {
 });
 
 // Obter todas as transações
-app.get('/api/transacoes', requireAuth, (req, res) => {
+app.get('/api/transacoes', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const transacoes = db.getTransacoes(userId);
+    const transacoes = await db.getTransacoes(userId);
     res.json(transacoes);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -375,11 +375,11 @@ app.get('/api/transacoes', requireAuth, (req, res) => {
 });
 
 // Obter transações por período
-app.get('/api/transacoes/periodo', requireAuth, (req, res) => {
+app.get('/api/transacoes/periodo', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
     const { inicio, fim } = req.query;
-    const transacoes = db.getTransacoesPorPeriodo(userId, inicio, fim);
+    const transacoes = await db.getTransacoesPorPeriodo(userId, inicio, fim);
     res.json(transacoes);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -387,12 +387,12 @@ app.get('/api/transacoes/periodo', requireAuth, (req, res) => {
 });
 
 // Obter resumo financeiro
-app.get('/api/resumo', requireAuth, (req, res) => {
+app.get('/api/resumo', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
     console.log(`📊 API /api/resumo - Buscando resumo para usuário ${userId}`);
     
-    const resumo = db.getResumo(userId);
+    const resumo = await db.getResumo(userId);
     console.log(`📊 Resumo calculado:`, resumo);
     console.log(`   Receitas: R$ ${resumo.receitas.toFixed(2)}`);
     console.log(`   Despesas: R$ ${resumo.despesas.toFixed(2)}`);
@@ -406,11 +406,11 @@ app.get('/api/resumo', requireAuth, (req, res) => {
 });
 
 // Obter resumo mensal
-app.get('/api/resumo/mensal', requireAuth, (req, res) => {
+app.get('/api/resumo/mensal', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
     const { mes, ano } = req.query;
-    const resumo = db.getResumoMensal(userId, mes, ano);
+    const resumo = await db.getResumoMensal(userId, mes, ano);
     res.json(resumo);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -418,10 +418,10 @@ app.get('/api/resumo/mensal', requireAuth, (req, res) => {
 });
 
 // Obter alertas
-app.get('/api/alertas', requireAuth, (req, res) => {
+app.get('/api/alertas', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const alertas = db.getAlertas(userId);
+    const alertas = await db.getAlertas(userId);
     res.json(alertas);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -429,10 +429,10 @@ app.get('/api/alertas', requireAuth, (req, res) => {
 });
 
 // Marcar alerta como lido
-app.put('/api/alertas/:id/lido', (req, res) => {
+app.put('/api/alertas/:id/lido', async (req, res) => {
   try {
     const { id } = req.params;
-    db.marcarAlertaLido(id);
+    await db.marcarAlertaLido(id);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -440,9 +440,9 @@ app.put('/api/alertas/:id/lido', (req, res) => {
 });
 
 // Obter categorias
-app.get('/api/categorias', (req, res) => {
+app.get('/api/categorias', async (req, res) => {
   try {
-    const categorias = db.getCategorias();
+    const categorias = await db.getCategorias();
     res.json(categorias);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -476,22 +476,22 @@ app.post('/api/chat', requireAuth, async (req, res) => {
     }
 
     // Buscar histórico do usuário
-    const historico = db.getChatHistory(userId, 20);
+    const historico = await db.getChatHistory(userId, 20);
     console.log('📚 Histórico carregado:', historico.length, 'mensagens');
     
     // Salvar mensagem do usuário
-    db.addChatMessage(userId, 'user', message);
+    await db.addChatMessage(userId, 'user', message);
     
     // Verificar se quer deletar uma transação
     const delecaoDetectada = await openaiService.detectarDelecao(message);
     if (delecaoDetectada && delecaoDetectada.isDelecao) {
       console.log('🗑️ DELEÇÃO DETECTADA! Valor:', delecaoDetectada.valor);
       
-      const deletado = db.deleteLastTransacaoByValor(userId, delecaoDetectada.valor);
+      const deletado = await db.deleteLastTransacaoByValor(userId, delecaoDetectada.valor);
       
       if (deletado) {
         const confirmacao = `✅ **Transação de R$ ${delecaoDetectada.valor.toFixed(2)} removida com sucesso!**\n\n📊 Veja a atualização no Dashboard.`;
-        db.addChatMessage(userId, 'assistant', confirmacao);
+        await db.addChatMessage(userId, 'assistant', confirmacao);
         
         // Notificar WebSocket
         if (global.notifyClients) {
@@ -508,7 +508,7 @@ app.post('/api/chat', requireAuth, async (req, res) => {
         });
       } else {
         const erro = `❌ Não encontrei transação de R$ ${delecaoDetectada.valor.toFixed(2)} para remover.`;
-        db.addChatMessage(userId, 'assistant', erro);
+        await db.addChatMessage(userId, 'assistant', erro);
         return res.json({ success: true, message: erro });
       }
     }
@@ -526,7 +526,7 @@ app.post('/api/chat', requireAuth, async (req, res) => {
         console.log('💰 TRANSAÇÃO DETECTADA!', transacaoDetectada);
         
         // Salvar transação no banco com user_id
-        const transacaoId = db.addTransacao(
+        const transacaoId = await db.addTransacao(
           userId, // IMPORTANTE: user_id do usuário autenticado
           transacaoDetectada.tipo,
           transacaoDetectada.valor,
@@ -557,8 +557,8 @@ app.post('/api/chat', requireAuth, async (req, res) => {
     // Buscar dados reais do usuário para contexto
     let contextoDados = '';
     try {
-      const transacoesUsuario = db.getTransacoes(userId, 10);
-      const resumoUsuario = db.getResumo(userId);
+      const transacoesUsuario = await db.getTransacoes(userId, 10);
+      const resumoUsuario = await db.getResumo(userId);
       
       if (transacoesUsuario.length > 0 || resumoUsuario.receitas > 0 || resumoUsuario.despesas > 0) {
         contextoDados = `\n\nDADOS REAIS DO USUÁRIO (não invente outros):\n`;
@@ -593,7 +593,7 @@ app.post('/api/chat', requireAuth, async (req, res) => {
       const confirmacao = `\n\n✅ **Transação registrada automaticamente no sistema!**\n- Tipo: ${transacaoDetectada.tipo === 'receita' ? 'Receita' : 'Despesa'}\n- Valor: R$ ${transacaoDetectada.valor.toFixed(2)}\n- Categoria: ${transacaoDetectada.categoria}\n\n📊 **Veja no Dashboard agora!** (aba Dashboard acima)`;
       
       // Salvar resposta da IA com confirmação
-      db.addChatMessage(userId, 'assistant', resposta + confirmacao);
+      await db.addChatMessage(userId, 'assistant', resposta + confirmacao);
       
       return res.json({ 
         success: true,
@@ -604,7 +604,7 @@ app.post('/api/chat', requireAuth, async (req, res) => {
     }
     
     // Salvar resposta da IA
-    db.addChatMessage(userId, 'assistant', resposta);
+    await db.addChatMessage(userId, 'assistant', resposta);
     
     res.json({ 
       success: true,
@@ -648,10 +648,10 @@ app.post('/api/chat/audio', requireAuth, checkPlanLimit('audio_enabled'), upload
     console.log('📝 Transcrição:', transcricao);
     
     // Buscar histórico do usuário
-    const historico = db.getChatHistory(userId, 20);
+    const historico = await db.getChatHistory(userId, 20);
     
     // Salvar mensagem do usuário com transcrição
-    db.addChatMessage(userId, 'user', transcricao, transcricao);
+    await db.addChatMessage(userId, 'user', transcricao, transcricao);
     
     // Obter resposta da IA
     console.log('🤖 Processando com IA...');
@@ -666,7 +666,8 @@ app.post('/api/chat/audio', requireAuth, checkPlanLimit('audio_enabled'), upload
         console.log('💰 Transação detectada (áudio):', transacaoDetectada);
         
         // Salvar transação no banco
-        const transacaoId = db.addTransacao(
+        const transacaoId = await db.addTransacao(
+          userId,
           transacaoDetectada.tipo,
           transacaoDetectada.valor,
           transacaoDetectada.categoria,
@@ -680,7 +681,7 @@ app.post('/api/chat/audio', requireAuth, checkPlanLimit('audio_enabled'), upload
         if (global.notifyClients) {
           global.notifyClients({
             type: 'nova_transacao',
-            data: { id: transacaoId, ...transacaoDetectada }
+            data: { id: transacaoId, userId: userId, ...transacaoDetectada }
           });
         }
         
@@ -688,7 +689,7 @@ app.post('/api/chat/audio', requireAuth, checkPlanLimit('audio_enabled'), upload
         const confirmacao = `\n\n✅ **Transação registrada com sucesso!**\n- Tipo: ${transacaoDetectada.tipo}\n- Valor: R$ ${transacaoDetectada.valor.toFixed(2)}\n- Categoria: ${transacaoDetectada.categoria}\n\nVocê pode ver no Dashboard agora! 📊`;
         
         // Salvar resposta da IA com confirmação
-        db.addChatMessage(userId, 'assistant', resposta + confirmacao);
+        await db.addChatMessage(userId, 'assistant', resposta + confirmacao);
         
         return res.json({ 
           success: true,
@@ -703,7 +704,7 @@ app.post('/api/chat/audio', requireAuth, checkPlanLimit('audio_enabled'), upload
     }
     
     // Salvar resposta da IA
-    db.addChatMessage(userId, 'assistant', resposta);
+    await db.addChatMessage(userId, 'assistant', resposta);
     
     res.json({ 
       success: true,
@@ -721,10 +722,10 @@ app.post('/api/chat/audio', requireAuth, checkPlanLimit('audio_enabled'), upload
 });
 
 // Obter histórico de chat
-app.get('/api/chat/history', requireAuth, (req, res) => {
+app.get('/api/chat/history', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const history = db.getChatHistory(userId, 100);
+    const history = await db.getChatHistory(userId, 100);
     res.json(history);
   } catch (error) {
     console.error('Erro ao buscar histórico:', error);
@@ -733,10 +734,10 @@ app.get('/api/chat/history', requireAuth, (req, res) => {
 });
 
 // Limpar histórico de chat
-app.delete('/api/chat/history', requireAuth, (req, res) => {
+app.delete('/api/chat/history', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    db.clearChatHistory(userId);
+    await db.clearChatHistory(userId);
     res.json({ success: true, message: 'Histórico limpo com sucesso' });
   } catch (error) {
     console.error('Erro ao limpar histórico:', error);
@@ -745,11 +746,11 @@ app.delete('/api/chat/history', requireAuth, (req, res) => {
 });
 
 // ===== ROTA DE TESTE - Adicionar transação manualmente =====
-app.post('/api/test/add-transaction', (req, res) => {
+app.post('/api/test/add-transaction', async (req, res) => {
   try {
-    const { tipo, valor, categoria, descricao } = req.body;
+    const { tipo, valor, categoria, descricao, userId } = req.body;
     
-    const transacaoId = db.addTransacao(tipo, valor, categoria, descricao, 'TESTE MANUAL');
+    const transacaoId = await db.addTransacao(userId || 1, tipo, valor, categoria, descricao, 'TESTE MANUAL');
     
     // Notificar clientes
     if (global.notifyClients) {
