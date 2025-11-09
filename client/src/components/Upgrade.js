@@ -151,31 +151,40 @@ function Upgrade({ onClose }) {
                 onClick={() => !isCurrentPlan && setSelectedPlan(planKey)}
               >
                 {plan.popular && <div className="popular-badge">⭐ MAIS POPULAR</div>}
-                {isCurrentPlan && <div className="current-badge">✅ PLANO ATUAL</div>}
+                {isCurrentPlan && <div className="current-badge">✅ SEU PLANO</div>}
                 
-                <h3>{plan.name}</h3>
-                <p className="price">
-                  R$ {plan.price.toFixed(2)}
-                  <span className="period">/mês</span>
-                </p>
+                <div className="plan-header">
+                  <h3 className="plan-name">{plan.name}</h3>
+                  <div className="plan-price-container">
+                    <span className="price-value">R$ {plan.price.toFixed(2)}</span>
+                    <span className="price-period">/mês</span>
+                  </div>
+                </div>
 
-                <ul className="features">
+                <ul className="features-list">
                   {plan.features.map((feature, idx) => (
-                    <li key={idx}>✅ {feature}</li>
+                    <li key={idx}>
+                      <span className="check-icon">✓</span>
+                      <span>{feature}</span>
+                    </li>
                   ))}
                 </ul>
 
-                {!isCurrentPlan && (
-                  <button 
-                    className={`select-btn ${selectedPlan === planKey ? 'selected' : ''}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedPlan(planKey);
-                    }}
-                  >
-                    {selectedPlan === planKey ? 'Selecionado' : 'Selecionar'}
-                  </button>
-                )}
+                <div className="plan-footer">
+                  {!isCurrentPlan ? (
+                    <button 
+                      className={`select-btn ${selectedPlan === planKey ? 'selected' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedPlan(planKey);
+                      }}
+                    >
+                      {selectedPlan === planKey ? '✓ Selecionado' : 'Selecionar'}
+                    </button>
+                  ) : (
+                    <div className="current-plan-label">Plano Atual</div>
+                  )}
+                </div>
               </div>
             );
           })}

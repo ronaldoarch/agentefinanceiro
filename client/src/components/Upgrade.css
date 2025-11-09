@@ -164,36 +164,72 @@
   color: white;
 }
 
-.plan-card h3 {
-  margin: 0 0 10px 0;
-  font-size: 1.5rem;
+.plan-header {
+  text-align: center;
+  margin-bottom: 25px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.plan-name {
+  margin: 0 0 15px 0;
+  font-size: 1.6rem;
+  font-weight: 700;
   color: #333;
 }
 
-.plan-card .price {
-  font-size: 2.5rem;
+.plan-price-container {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 5px;
+}
+
+.price-value {
+  font-size: 2.8rem;
   font-weight: 700;
   color: #667eea;
-  margin: 10px 0 20px 0;
+  line-height: 1;
 }
 
-.plan-card .period {
-  font-size: 1rem;
+.price-period {
+  font-size: 1.1rem;
   color: #999;
-  font-weight: 400;
+  font-weight: 500;
 }
 
-.plan-card .features {
+.features-list {
   list-style: none;
   padding: 0;
-  margin: 0 0 20px 0;
+  margin: 0 0 auto 0;
+  flex: 1;
 }
 
-.plan-card .features li {
-  padding: 10px 0;
+.features-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
   color: #555;
   font-size: 0.95rem;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.features-list li:last-child {
+  border-bottom: none;
+}
+
+.check-icon {
+  color: #4caf50;
+  font-weight: 700;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.plan-footer {
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 2px solid #f0f0f0;
 }
 
 .select-btn {
@@ -216,6 +252,16 @@
 .select-btn.selected {
   background: #667eea;
   color: white;
+}
+
+.current-plan-label {
+  text-align: center;
+  padding: 12px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.95rem;
 }
 
 .checkout-actions {
