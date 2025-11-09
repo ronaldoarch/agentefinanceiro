@@ -241,11 +241,69 @@ Categorias disponíveis: Alimentação, Transporte, Moradia, Saúde, Educação,
   }
 }
 
+// Detectar se a mensagem é uma transação
+async function detectarTransacao(mensagem) {
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4-turbo-preview",
+      messages: [
+        {
+          role: "system",
+          content: `Analise a mensagem do usuário e determine se é uma transação financeira (receita ou despesa).
+
+Se for uma transação, extraia:
+- isTransacao: true/false
+- tipo: "receita" ou "despesa"
+- valor: número decimal
+- categoria: uma das categorias válidas
+- descricao: descrição clara e concisa
+
+Categorias válidas:
+Despesas: Alimentação, Transporte, Moradia, Saúde, Educação, Lazer, Compras, Contas, Outros
+Receitas: Salário, Freelance, Investimentos, Outros
+
+Exemplos:
+"Gastei 50 reais no mercado" → {"isTransacao": true, "tipo": "despesa", "valor": 50, "categoria": "Alimentação", "descricao": "Compras no mercado"}
+"Recebi 2000 do freelance" → {"isTransacao": true, "tipo": "receita", "valor": 2000, "categoria": "Freelance", "descricao": "Pagamento freelance"}
+"Como faço para economizar?" → {"isTransacao": false}
+
+IMPORTANTE: Responda APENAS com JSON válido, sem texto adicional.`
+        },
+        {
+          role: "user",
+          content: mensagem
+        }
+      ],
+      temperature: 0.3,
+      response_format: { type: "json_object" }
+    });
+
+    const resultado = JSON.parse(completion.choices[0].message.content);
+    
+    if (resultado.isTransacao && resultado.valor && resultado.tipo) {
+      return {
+        isTransacao: true,
+        tipo: resultado.tipo,
+        valor: parseFloat(resultado.valor),
+        categoria: resultado.categoria || 'Outros',
+        descricao: resultado.descricao || mensagem
+      };
+    }
+
+    return { isTransacao: false };
+
+  } catch (error) {
+    console.error('❌ Erro ao detectar transação:', error.message);
+    return { isTransacao: false };
+  }
+}
+
 module.exports = {
   processarMensagemFinanceira,
   gerarResumo,
   analisarPadroesEAlertas,
   transcreverAudio,
-  chatFinanceiro
+  chatFinanceiro,
+  detectarTransacao
 };
 
