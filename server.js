@@ -7,7 +7,7 @@ const fs = require('fs');
 const moment = require('moment');
 const multer = require('multer');
 const whatsappService = require('./services/whatsapp');
-const db = require('./services/database');
+const db = require('./services/database-supabase');
 const openaiService = require('./services/openai');
 const authService = require('./services/auth');
 const { requireAuth, requireAdmin, checkPlanLimit } = require('./middleware/auth');
@@ -42,38 +42,63 @@ if (fs.existsSync(indexPath)) {
 
 app.use(express.static(buildPath));
 
-// Inicializar banco de dados
-db.init();
+// Função assíncrona de inicialização
+async function startServer() {
+  try {
+    // Inicializar banco de dados Supabase
+    console.log('🔄 Iniciando conexão com Supabase...');
+    await db.init();
+    console.log('✅ Supabase conectado!');
 
-// Criar usuário admin se não existir
-authService.createAdminUser().catch(err => {
-  console.error('Erro ao criar admin:', err);
-});
+    // Criar usuário admin se não existir
+    await authService.createAdminUser().catch(err => {
+      console.error('Erro ao criar admin:', err);
+    });
 
-// Criar servidor WebSocket para atualizações em tempo real
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
-  console.log(`📱 Aguardando conexão com WhatsApp...`);
-});
+    // Criar servidor WebSocket para atualizações em tempo real
+    const server = app.listen(PORT, () => {
+      console.log(`🚀 Servidor rodando na porta ${PORT}`);
+      console.log(`📱 Aguardando conexão com WhatsApp...`);
+      console.log('✅ Sistema totalmente operacional!');
+      console.log('🔒 Banco de dados PostgreSQL na nuvem!');
+    });
 
-const wss = new WebSocket.Server({ server });
+    return server;
+  } catch (error) {
+    console.error('❌ ERRO ao iniciar servidor:', error);
+    console.error('Stack:', error.stack);
+    process.exit(1);
+  }
+}
 
-// Armazenar conexões WebSocket
-global.wsClients = [];
+// Iniciar servidor
+const serverPromise = startServer();
+serverPromise.then(server => {
+  global.server = server;
+  
+  // Configurar WebSocket
+  const wss = new WebSocket.Server({ server });
 
-wss.on('connection', (ws) => {
-  console.log('🔌 Cliente WebSocket conectado');
-  global.wsClients.push(ws);
+  // Armazenar conexões WebSocket
+  global.wsClients = [];
 
-  ws.on('close', () => {
-    global.wsClients = global.wsClients.filter(client => client !== ws);
-    console.log('🔌 Cliente WebSocket desconectado');
+  wss.on('connection', (ws) => {
+    console.log('🔌 Cliente WebSocket conectado');
+    global.wsClients.push(ws);
+
+    ws.on('close', () => {
+      global.wsClients = global.wsClients.filter(client => client !== ws);
+      console.log('🔌 Cliente WebSocket desconectado');
+    });
   });
+  
+  // Inicializar WhatsApp
+  // DESABILITADO TEMPORARIAMENTE - Conecte manualmente pela interface
+  // whatsappService.initialize();
+}).catch(error => {
+  console.error('❌ Erro fatal ao iniciar servidor:', error);
+  process.exit(1);
 });
-
-// Inicializar WhatsApp
-// DESABILITADO TEMPORARIAMENTE - Conecte manualmente pela interface
-// whatsappService.initialize();
 
 // ================== ROTAS API ==================
 
@@ -162,16 +187,10 @@ app.post('/api/payments/request', requireAuth, async (req, res) => {
 });
 
 // Listar meus pagamentos
-app.get('/api/payments/my', requireAuth, (req, res) => {
+app.get('/api/payments/my', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const stmt = db.db.prepare(`
-      SELECT * FROM payments 
-      WHERE user_id = ?
-      ORDER BY created_at DESC
-    `);
-    
-    const payments = stmt.all(userId);
+    const payments = await db.getPaymentsByUser(userId);
     res.json(payments);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -265,7 +284,7 @@ app.post('/api/admin/payments/:id/approve', requireAuth, requireAdmin, async (re
     const adminId = req.user.id;
     
     // Buscar pagamento
-    const payment = db.db.prepare('SELECT * FROM payments WHERE id = ?').get(id);
+    const payment = await db.getPaymentById(id);
     
     if (!payment) {
       return res.status(404).json({ error: 'Pagamento não encontrado' });
@@ -276,14 +295,14 @@ app.post('/api/admin/payments/:id/approve', requireAuth, requireAdmin, async (re
     }
     
     // Aprovar pagamento
-    db.approvePayment(id, adminId, transaction_id);
+    await db.approvePayment(id, adminId, transaction_id);
     
     // Atualizar plano do usuário
-    db.updateUserPlan(payment.user_id, plan || payment.plan);
+    await db.updateUserPlan(payment.user_id, plan || payment.plan);
     
     // Criar assinatura (30 dias)
-    const expiresAt = moment().add(30, 'days').format('YYYY-MM-DD HH:mm:ss');
-    db.createSubscription(payment.user_id, plan || payment.plan, expiresAt);
+    const expiresAt = moment().add(30, 'days').toISOString();
+    await db.createSubscription(payment.user_id, plan || payment.plan, expiresAt);
     
     res.json({
       success: true,

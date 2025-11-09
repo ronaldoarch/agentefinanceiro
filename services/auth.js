@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const db = require('./database');
+const db = require('./database-supabase');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'sua-chave-secreta-aqui-mude-em-producao';
 const JWT_EXPIRES_IN = '7d';
@@ -41,7 +41,7 @@ function verifyToken(token) {
 async function register(email, password, name) {
   try {
     // Verificar se email já existe
-    const existingUser = db.getUserByEmail(email);
+    const existingUser = await db.getUserByEmail(email);
     if (existingUser) {
       throw new Error('Email já cadastrado');
     }
@@ -59,10 +59,10 @@ async function register(email, password, name) {
     const hashedPassword = await hashPassword(password);
 
     // Criar usuário
-    const userId = db.createUser(email, hashedPassword, name);
+    const userId = await db.createUser(email, hashedPassword, name);
 
     // Buscar usuário criado
-    const user = db.getUserById(userId);
+    const user = await db.getUserById(userId);
 
     // Gerar token
     const token = generateToken(user);
@@ -85,7 +85,7 @@ async function register(email, password, name) {
 async function login(email, password) {
   try {
     // Buscar usuário
-    const user = db.getUserByEmail(email);
+    const user = await db.getUserByEmail(email);
     
     if (!user) {
       throw new Error('Email ou senha inválidos');
@@ -104,7 +104,7 @@ async function login(email, password) {
     }
 
     // Atualizar último login
-    db.updateLastLogin(user.id);
+    await db.updateLastLogin(user.id);
 
     // Gerar token
     const token = generateToken(user);
@@ -130,7 +130,7 @@ async function createAdminUser() {
     const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
 
     // Verificar se admin já existe
-    const existingAdmin = db.getUserByEmail(adminEmail);
+    const existingAdmin = await db.getUserByEmail(adminEmail);
     if (existingAdmin) {
       console.log('👤 Usuário admin já existe');
       return existingAdmin;
@@ -140,7 +140,7 @@ async function createAdminUser() {
     const hashedPassword = await hashPassword(adminPassword);
 
     // Criar admin
-    const adminId = db.createUser(
+    const adminId = await db.createUser(
       adminEmail,
       hashedPassword,
       'Administrador',
@@ -153,7 +153,7 @@ async function createAdminUser() {
     console.log(`   Senha: ${adminPassword}`);
     console.log('   ⚠️  IMPORTANTE: Altere a senha após o primeiro login!');
 
-    return db.getUserById(adminId);
+    return await db.getUserById(adminId);
   } catch (error) {
     console.error('Erro ao criar admin:', error);
     throw error;

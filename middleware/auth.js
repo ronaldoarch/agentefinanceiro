@@ -1,8 +1,8 @@
 const authService = require('../services/auth');
-const db = require('../services/database');
+const db = require('../services/database-supabase');
 
 // Middleware para verificar autenticação
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
   try {
     // Pegar token do header
     const authHeader = req.headers.authorization;
@@ -26,8 +26,8 @@ function requireAuth(req, res, next) {
       });
     }
 
-    // Buscar usuário
-    const user = db.getUserById(decoded.id);
+    // Buscar usuário (async)
+    const user = await db.getUserById(decoded.id);
     
     if (!user) {
       return res.status(401).json({
@@ -77,7 +77,7 @@ function requireAdmin(req, res, next) {
 }
 
 // Middleware opcional (não bloqueia se não tiver token)
-function optionalAuth(req, res, next) {
+async function optionalAuth(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
     
@@ -86,7 +86,7 @@ function optionalAuth(req, res, next) {
       const decoded = authService.verifyToken(token);
       
       if (decoded) {
-        const user = db.getUserById(decoded.id);
+        const user = await db.getUserById(decoded.id);
         if (user && user.active) {
           const { password, ...userWithoutPassword } = user;
           req.user = userWithoutPassword;
