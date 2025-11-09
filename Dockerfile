@@ -10,7 +10,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instalar dependências
-RUN npm install
+RUN npm install --production=false
 
 # Copiar código da aplicação
 COPY . .

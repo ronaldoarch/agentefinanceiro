@@ -200,20 +200,31 @@ app.get('/api/health', (req, res) => {
 // Enviar mensagem de texto no chat
 app.post('/api/chat', async (req, res) => {
   try {
+    console.log('📝 Chat: Recebendo mensagem de texto');
     const { message } = req.body;
     
     if (!message) {
       return res.status(400).json({ error: 'Mensagem é obrigatória' });
     }
 
+    console.log('📝 Mensagem:', message);
+
+    // Verificar se openaiService está disponível
+    if (!openaiService || !openaiService.chatFinanceiro) {
+      throw new Error('Serviço OpenAI não disponível');
+    }
+
     // Buscar histórico
     const historico = db.getChatHistory(20);
+    console.log('📚 Histórico carregado:', historico.length, 'mensagens');
     
     // Salvar mensagem do usuário
     db.addChatMessage('user', message);
     
     // Obter resposta da IA
+    console.log('🤖 Processando com IA...');
     const resposta = await openaiService.chatFinanceiro(message, historico);
+    console.log('✅ Resposta da IA recebida');
     
     // Salvar resposta da IA
     db.addChatMessage('assistant', resposta);
@@ -223,21 +234,33 @@ app.post('/api/chat', async (req, res) => {
       message: resposta
     });
   } catch (error) {
-    console.error('Erro no chat:', error);
-    res.status(500).json({ error: error.message });
+    console.error('❌ Erro no chat:', error);
+    console.error('❌ Stack:', error.stack);
+    res.status(500).json({ 
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
 // Enviar áudio no chat
 app.post('/api/chat/audio', upload.single('audio'), async (req, res) => {
   try {
+    console.log('🎤 Chat: Recebendo áudio');
+    
     if (!req.file) {
       return res.status(400).json({ error: 'Arquivo de áudio é obrigatório' });
     }
 
     console.log('🎤 Áudio recebido:', req.file.originalname, req.file.size, 'bytes');
     
+    // Verificar se openaiService está disponível
+    if (!openaiService || !openaiService.transcreverAudio || !openaiService.chatFinanceiro) {
+      throw new Error('Serviço OpenAI não disponível');
+    }
+    
     // Transcrever áudio
+    console.log('🎤 Transcrevendo áudio...');
     const transcricao = await openaiService.transcreverAudio(
       req.file.buffer,
       req.file.originalname
@@ -252,7 +275,9 @@ app.post('/api/chat/audio', upload.single('audio'), async (req, res) => {
     db.addChatMessage('user', transcricao, transcricao);
     
     // Obter resposta da IA
+    console.log('🤖 Processando com IA...');
     const resposta = await openaiService.chatFinanceiro(transcricao, historico);
+    console.log('✅ Resposta da IA recebida');
     
     // Salvar resposta da IA
     db.addChatMessage('assistant', resposta);
@@ -263,8 +288,12 @@ app.post('/api/chat/audio', upload.single('audio'), async (req, res) => {
       message: resposta
     });
   } catch (error) {
-    console.error('Erro ao processar áudio:', error);
-    res.status(500).json({ error: error.message });
+    console.error('❌ Erro ao processar áudio:', error);
+    console.error('❌ Stack:', error.stack);
+    res.status(500).json({ 
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
