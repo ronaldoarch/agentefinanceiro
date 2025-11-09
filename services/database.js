@@ -19,7 +19,21 @@ function init() {
   
   // Criar tabelas
   db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      name TEXT NOT NULL,
+      role TEXT DEFAULT 'user', -- 'user', 'admin'
+      plan TEXT DEFAULT 'free', -- 'free', 'premium', 'enterprise'
+      whatsapp_number TEXT,
+      active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      last_login TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS transacoes (
+      user_id INTEGER NOT NULL,
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       tipo TEXT NOT NULL, -- 'receita' ou 'despesa'
       valor REAL NOT NULL,
@@ -32,6 +46,7 @@ function init() {
     );
 
     CREATE TABLE IF NOT EXISTS alertas (
+      user_id INTEGER NOT NULL,
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       tipo TEXT NOT NULL, -- 'info', 'warning', 'danger'
       titulo TEXT NOT NULL,
@@ -50,6 +65,7 @@ function init() {
     );
 
     CREATE TABLE IF NOT EXISTS chat_messages (
+      user_id INTEGER NOT NULL,
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       role TEXT NOT NULL, -- 'user' ou 'assistant'
       content TEXT NOT NULL,
@@ -225,32 +241,112 @@ function getEstatisticasPorCategoria(mes, ano) {
   return stmt.all(mes, ano);
 }
 
-// Adicionar mensagem de chat
-function addChatMessage(role, content, audioTranscription = null) {
+// ================== FUNÇÕES DE USUÁRIO ==================
+
+// Criar usuário
+function createUser(email, password, name, role = 'user', plan = 'free') {
   const stmt = db.prepare(`
-    INSERT INTO chat_messages (role, content, audio_transcription)
-    VALUES (?, ?, ?)
+    INSERT INTO users (email, password, name, role, plan)
+    VALUES (?, ?, ?, ?, ?)
   `);
   
-  const result = stmt.run(role, content, audioTranscription);
+  const result = stmt.run(email, password, name, role, plan);
+  return result.lastInsertRowid;
+}
+
+// Buscar usuário por email
+function getUserByEmail(email) {
+  const stmt = db.prepare(`SELECT * FROM users WHERE email = ?`);
+  return stmt.get(email);
+}
+
+// Buscar usuário por ID
+function getUserById(id) {
+  const stmt = db.prepare(`SELECT * FROM users WHERE id = ?`);
+  return stmt.get(id);
+}
+
+// Atualizar último login
+function updateLastLogin(userId) {
+  const stmt = db.prepare(`
+    UPDATE users 
+    SET last_login = CURRENT_TIMESTAMP 
+    WHERE id = ?
+  `);
+  return stmt.run(userId);
+}
+
+// Listar todos os usuários (para admin)
+function getAllUsers() {
+  const stmt = db.prepare(`
+    SELECT id, email, name, role, plan, active, created_at, last_login 
+    FROM users 
+    ORDER BY created_at DESC
+  `);
+  return stmt.all();
+}
+
+// Atualizar plano do usuário
+function updateUserPlan(userId, plan) {
+  const stmt = db.prepare(`
+    UPDATE users 
+    SET plan = ? 
+    WHERE id = ?
+  `);
+  return stmt.run(plan, userId);
+}
+
+// Desativar/Ativar usuário
+function toggleUserActive(userId) {
+  const stmt = db.prepare(`
+    UPDATE users 
+    SET active = NOT active 
+    WHERE id = ?
+  `);
+  return stmt.run(userId);
+}
+
+// Estatísticas para admin
+function getAdminStats() {
+  const stmt = db.prepare(`
+    SELECT 
+      COUNT(*) as total_users,
+      SUM(CASE WHEN active = 1 THEN 1 ELSE 0 END) as active_users,
+      SUM(CASE WHEN plan = 'free' THEN 1 ELSE 0 END) as free_users,
+      SUM(CASE WHEN plan = 'premium' THEN 1 ELSE 0 END) as premium_users,
+      SUM(CASE WHEN plan = 'enterprise' THEN 1 ELSE 0 END) as enterprise_users
+    FROM users
+  `);
+  return stmt.get();
+}
+
+// Adicionar mensagem de chat
+function addChatMessage(userId, role, content, audioTranscription = null) {
+  const stmt = db.prepare(`
+    INSERT INTO chat_messages (user_id, role, content, audio_transcription)
+    VALUES (?, ?, ?, ?)
+  `);
+  
+  const result = stmt.run(userId, role, content, audioTranscription);
   return result.lastInsertRowid;
 }
 
 // Obter histórico de chat
-function getChatHistory(limit = 50) {
+function getChatHistory(userId, limit = 50) {
   const stmt = db.prepare(`
     SELECT * FROM chat_messages 
+    WHERE user_id = ?
     ORDER BY created_at DESC 
     LIMIT ?
   `);
   
-  return stmt.all(limit).reverse(); // Reverter para ordem cronológica
+  return stmt.all(userId, limit).reverse(); // Reverter para ordem cronológica
 }
 
 // Limpar histórico de chat
-function clearChatHistory() {
-  const stmt = db.prepare(`DELETE FROM chat_messages`);
-  return stmt.run();
+function clearChatHistory(userId) {
+  const stmt = db.prepare(`DELETE FROM chat_messages WHERE user_id = ?`);
+  return stmt.run(userId);
 }
 
 module.exports = {
@@ -267,6 +363,15 @@ module.exports = {
   getEstatisticasPorCategoria,
   addChatMessage,
   getChatHistory,
-  clearChatHistory
+  clearChatHistory,
+  // Funções de usuário
+  createUser,
+  getUserByEmail,
+  getUserById,
+  updateLastLogin,
+  getAllUsers,
+  updateUserPlan,
+  toggleUserActive,
+  getAdminStats
 };
 
