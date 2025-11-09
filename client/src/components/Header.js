@@ -38,6 +38,12 @@ function Header({ whatsappStatus, activeTab, setActiveTab }) {
           >
             📱 WhatsApp
           </button>
+          <button 
+            className={`nav-tab ${activeTab === 'chat' ? 'active' : ''}`}
+            onClick={() => setActiveTab('chat')}
+          >
+            💬 Chat IA
+          </button>
         </nav>
       </div>
     </header>

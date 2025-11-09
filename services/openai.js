@@ -155,9 +155,97 @@ async function analisarPadroesEAlertas(transacoes, resumo) {
   }
 }
 
+// Transcrever áudio usando Whisper
+async function transcreverAudio(audioBuffer, filename) {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Salvar temporariamente o áudio
+    const tempPath = path.join('/tmp', filename);
+    fs.writeFileSync(tempPath, audioBuffer);
+    
+    // Transcrever com Whisper
+    const transcription = await openai.audio.transcriptions.create({
+      file: fs.createReadStream(tempPath),
+      model: "whisper-1",
+      language: "pt"
+    });
+    
+    // Limpar arquivo temporário
+    fs.unlinkSync(tempPath);
+    
+    return transcription.text;
+  } catch (error) {
+    console.error('❌ Erro ao transcrever áudio:', error.message);
+    throw error;
+  }
+}
+
+// Chat conversacional com contexto financeiro
+async function chatFinanceiro(mensagem, historico = []) {
+  try {
+    const mensagens = [
+      {
+        role: "system",
+        content: `Você é um assistente financeiro inteligente e amigável chamado "Agente Financeiro".
+
+Suas funções:
+1. Responder perguntas sobre finanças pessoais
+2. Ajudar o usuário a registrar transações (receitas e despesas)
+3. Dar conselhos financeiros práticos
+4. Analisar gastos e sugerir melhorias
+5. Explicar conceitos financeiros de forma simples
+
+Estilo de comunicação:
+- Seja amigável e use emojis apropriados
+- Seja direto e prático
+- Responda em português do Brasil
+- Use exemplos quando necessário
+- Seja positivo e motivador
+
+Quando o usuário mencionar uma transação financeira:
+- Confirme que entendeu
+- Resuma os detalhes (valor, tipo, categoria)
+- Pergunte se está correto antes de registrar
+
+Categorias disponíveis: Alimentação, Transporte, Moradia, Saúde, Educação, Lazer, Compras, Contas, Salário, Freelance, Investimentos, Outros`
+      }
+    ];
+
+    // Adicionar histórico
+    historico.forEach(msg => {
+      mensagens.push({
+        role: msg.role,
+        content: msg.content
+      });
+    });
+
+    // Adicionar mensagem atual
+    mensagens.push({
+      role: "user",
+      content: mensagem
+    });
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4-turbo-preview",
+      messages: mensagens,
+      temperature: 0.7,
+      max_tokens: 800
+    });
+
+    return completion.choices[0].message.content;
+  } catch (error) {
+    console.error('❌ Erro no chat:', error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   processarMensagemFinanceira,
   gerarResumo,
-  analisarPadroesEAlertas
+  analisarPadroesEAlertas,
+  transcreverAudio,
+  chatFinanceiro
 };
 

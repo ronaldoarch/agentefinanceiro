@@ -48,6 +48,14 @@ function init() {
       icone TEXT,
       cor TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      role TEXT NOT NULL, -- 'user' ou 'assistant'
+      content TEXT NOT NULL,
+      audio_transcription TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   // Inserir categorias padrão se não existirem
@@ -217,6 +225,34 @@ function getEstatisticasPorCategoria(mes, ano) {
   return stmt.all(mes, ano);
 }
 
+// Adicionar mensagem de chat
+function addChatMessage(role, content, audioTranscription = null) {
+  const stmt = db.prepare(`
+    INSERT INTO chat_messages (role, content, audio_transcription)
+    VALUES (?, ?, ?)
+  `);
+  
+  const result = stmt.run(role, content, audioTranscription);
+  return result.lastInsertRowid;
+}
+
+// Obter histórico de chat
+function getChatHistory(limit = 50) {
+  const stmt = db.prepare(`
+    SELECT * FROM chat_messages 
+    ORDER BY created_at DESC 
+    LIMIT ?
+  `);
+  
+  return stmt.all(limit).reverse(); // Reverter para ordem cronológica
+}
+
+// Limpar histórico de chat
+function clearChatHistory() {
+  const stmt = db.prepare(`DELETE FROM chat_messages`);
+  return stmt.run();
+}
+
 module.exports = {
   init,
   addTransacao,
@@ -228,6 +264,9 @@ module.exports = {
   getAlertas,
   marcarAlertaLido,
   getCategorias,
-  getEstatisticasPorCategoria
+  getEstatisticasPorCategoria,
+  addChatMessage,
+  getChatHistory,
+  clearChatHistory
 };
 

@@ -6,6 +6,7 @@ import Transacoes from './components/Transacoes';
 import Alertas from './components/Alertas';
 import Header from './components/Header';
 import WhatsAppControl from './components/WhatsAppControl';
+import Chat from './components/Chat';
 
 function App() {
   const [resumo, setResumo] = useState(null);
@@ -123,6 +124,10 @@ function App() {
             whatsappStatus={whatsappStatus}
             onStatusChange={carregarDados}
           />
+        )}
+
+        {activeTab === 'chat' && (
+          <Chat />
         )}
       </div>
     </div>

@@ -4,8 +4,10 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
 const fs = require('fs');
+const multer = require('multer');
 const whatsappService = require('./services/whatsapp');
 const db = require('./services/database');
+const openaiService = require('./services/openai');
 const WebSocket = require('ws');
 
 const app = express();
@@ -14,6 +16,12 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
+
+// Configurar multer para upload de áudios
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+});
 
 // Servir arquivos estáticos do React
 const buildPath = path.join(__dirname, 'client', 'build');
@@ -185,6 +193,101 @@ app.get('/api/categorias', (req, res) => {
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ================== ROTAS DE CHAT ==================
+
+// Enviar mensagem de texto no chat
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { message } = req.body;
+    
+    if (!message) {
+      return res.status(400).json({ error: 'Mensagem é obrigatória' });
+    }
+
+    // Buscar histórico
+    const historico = db.getChatHistory(20);
+    
+    // Salvar mensagem do usuário
+    db.addChatMessage('user', message);
+    
+    // Obter resposta da IA
+    const resposta = await openaiService.chatFinanceiro(message, historico);
+    
+    // Salvar resposta da IA
+    db.addChatMessage('assistant', resposta);
+    
+    res.json({ 
+      success: true,
+      message: resposta
+    });
+  } catch (error) {
+    console.error('Erro no chat:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Enviar áudio no chat
+app.post('/api/chat/audio', upload.single('audio'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Arquivo de áudio é obrigatório' });
+    }
+
+    console.log('🎤 Áudio recebido:', req.file.originalname, req.file.size, 'bytes');
+    
+    // Transcrever áudio
+    const transcricao = await openaiService.transcreverAudio(
+      req.file.buffer,
+      req.file.originalname
+    );
+    
+    console.log('📝 Transcrição:', transcricao);
+    
+    // Buscar histórico
+    const historico = db.getChatHistory(20);
+    
+    // Salvar mensagem do usuário com transcrição
+    db.addChatMessage('user', transcricao, transcricao);
+    
+    // Obter resposta da IA
+    const resposta = await openaiService.chatFinanceiro(transcricao, historico);
+    
+    // Salvar resposta da IA
+    db.addChatMessage('assistant', resposta);
+    
+    res.json({ 
+      success: true,
+      transcription: transcricao,
+      message: resposta
+    });
+  } catch (error) {
+    console.error('Erro ao processar áudio:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obter histórico de chat
+app.get('/api/chat/history', (req, res) => {
+  try {
+    const history = db.getChatHistory(100);
+    res.json(history);
+  } catch (error) {
+    console.error('Erro ao buscar histórico:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Limpar histórico de chat
+app.delete('/api/chat/history', (req, res) => {
+  try {
+    db.clearChatHistory();
+    res.json({ success: true, message: 'Histórico limpo com sucesso' });
+  } catch (error) {
+    console.error('Erro ao limpar histórico:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // ===== ROTA DE TESTE - Adicionar transação manualmente =====
