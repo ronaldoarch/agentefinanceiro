@@ -129,53 +129,56 @@ function init() {
 }
 
 // Adicionar transação
-function addTransacao(tipo, valor, categoria, descricao, mensagemOriginal) {
+function addTransacao(userId, tipo, valor, categoria, descricao, mensagemOriginal) {
   const stmt = db.prepare(`
-    INSERT INTO transacoes (tipo, valor, categoria, descricao, data, mensagem_original)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO transacoes (user_id, tipo, valor, categoria, descricao, data, mensagem_original)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
   
   const data = moment().format('YYYY-MM-DD HH:mm:ss');
-  const result = stmt.run(tipo, valor, categoria, descricao, data, mensagemOriginal);
+  const result = stmt.run(userId, tipo, valor, categoria, descricao, data, mensagemOriginal);
   
   return result.lastInsertRowid;
 }
 
 // Obter todas as transações
-function getTransacoes(limit = 100) {
+function getTransacoes(userId, limit = 100) {
   const stmt = db.prepare(`
     SELECT * FROM transacoes 
+    WHERE user_id = ?
     ORDER BY data DESC 
     LIMIT ?
   `);
   
-  return stmt.all(limit);
+  return stmt.all(userId, limit);
 }
 
 // Obter transações por período
-function getTransacoesPorPeriodo(dataInicio, dataFim) {
+function getTransacoesPorPeriodo(userId, dataInicio, dataFim) {
   const stmt = db.prepare(`
     SELECT * FROM transacoes 
-    WHERE date(data) BETWEEN date(?) AND date(?)
+    WHERE user_id = ?
+      AND date(data) BETWEEN date(?) AND date(?)
     ORDER BY data DESC
   `);
   
-  return stmt.all(dataInicio, dataFim);
+  return stmt.all(userId, dataInicio, dataFim);
 }
 
 // Obter resumo financeiro
-function getResumo() {
+function getResumo(userId) {
   const stmt = db.prepare(`
     SELECT 
       tipo,
       SUM(valor) as total,
       COUNT(*) as quantidade
     FROM transacoes
-    WHERE date(data) >= date('now', 'start of month')
+    WHERE user_id = ?
+      AND date(data) >= date('now', 'start of month')
     GROUP BY tipo
   `);
   
-  const resultado = stmt.all();
+  const resultado = stmt.all(userId);
   
   let receitas = 0;
   let despesas = 0;
@@ -194,7 +197,7 @@ function getResumo() {
 }
 
 // Obter resumo mensal
-function getResumoMensal(mes, ano) {
+function getResumoMensal(userId, mes, ano) {
   const stmt = db.prepare(`
     SELECT 
       tipo,
@@ -202,35 +205,38 @@ function getResumoMensal(mes, ano) {
       SUM(valor) as total,
       COUNT(*) as quantidade
     FROM transacoes
-    WHERE strftime('%m', data) = ? AND strftime('%Y', data) = ?
+    WHERE user_id = ?
+      AND strftime('%m', data) = ? 
+      AND strftime('%Y', data) = ?
     GROUP BY tipo, categoria
   `);
   
-  return stmt.all(mes, ano);
+  return stmt.all(userId, mes, ano);
 }
 
 // Adicionar alerta
-function addAlerta(tipo, titulo, mensagem) {
+function addAlerta(userId, tipo, titulo, mensagem) {
   const stmt = db.prepare(`
-    INSERT INTO alertas (tipo, titulo, mensagem, data)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO alertas (user_id, tipo, titulo, mensagem, data)
+    VALUES (?, ?, ?, ?, ?)
   `);
   
   const data = moment().format('YYYY-MM-DD HH:mm:ss');
-  const result = stmt.run(tipo, titulo, mensagem, data);
+  const result = stmt.run(userId, tipo, titulo, mensagem, data);
   
   return result.lastInsertRowid;
 }
 
 // Obter alertas
-function getAlertas(limit = 50) {
+function getAlertas(userId, limit = 50) {
   const stmt = db.prepare(`
     SELECT * FROM alertas 
+    WHERE user_id = ?
     ORDER BY data DESC 
     LIMIT ?
   `);
   
-  return stmt.all(limit);
+  return stmt.all(userId, limit);
 }
 
 // Marcar alerta como lido

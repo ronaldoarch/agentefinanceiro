@@ -345,9 +345,10 @@ app.get('/api/whatsapp/qr', (req, res) => {
 });
 
 // Obter todas as transações
-app.get('/api/transacoes', (req, res) => {
+app.get('/api/transacoes', requireAuth, (req, res) => {
   try {
-    const transacoes = db.getTransacoes();
+    const userId = req.user.id;
+    const transacoes = db.getTransacoes(userId);
     res.json(transacoes);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -355,10 +356,11 @@ app.get('/api/transacoes', (req, res) => {
 });
 
 // Obter transações por período
-app.get('/api/transacoes/periodo', (req, res) => {
+app.get('/api/transacoes/periodo', requireAuth, (req, res) => {
   try {
+    const userId = req.user.id;
     const { inicio, fim } = req.query;
-    const transacoes = db.getTransacoesPorPeriodo(inicio, fim);
+    const transacoes = db.getTransacoesPorPeriodo(userId, inicio, fim);
     res.json(transacoes);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -366,9 +368,10 @@ app.get('/api/transacoes/periodo', (req, res) => {
 });
 
 // Obter resumo financeiro
-app.get('/api/resumo', (req, res) => {
+app.get('/api/resumo', requireAuth, (req, res) => {
   try {
-    const resumo = db.getResumo();
+    const userId = req.user.id;
+    const resumo = db.getResumo(userId);
     res.json(resumo);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -376,10 +379,11 @@ app.get('/api/resumo', (req, res) => {
 });
 
 // Obter resumo mensal
-app.get('/api/resumo/mensal', (req, res) => {
+app.get('/api/resumo/mensal', requireAuth, (req, res) => {
   try {
+    const userId = req.user.id;
     const { mes, ano } = req.query;
-    const resumo = db.getResumoMensal(mes, ano);
+    const resumo = db.getResumoMensal(userId, mes, ano);
     res.json(resumo);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -387,9 +391,10 @@ app.get('/api/resumo/mensal', (req, res) => {
 });
 
 // Obter alertas
-app.get('/api/alertas', (req, res) => {
+app.get('/api/alertas', requireAuth, (req, res) => {
   try {
-    const alertas = db.getAlertas();
+    const userId = req.user.id;
+    const alertas = db.getAlertas(userId);
     res.json(alertas);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -450,20 +455,21 @@ app.post('/api/chat', requireAuth, async (req, res) => {
     // Salvar mensagem do usuário
     db.addChatMessage(userId, 'user', message);
     
-    // Obter resposta da IA
-    console.log('🤖 Processando com IA...');
-    const resposta = await openaiService.chatFinanceiro(message, historico);
-    console.log('✅ Resposta da IA recebida');
+    // SEMPRE tentar detectar transação PRIMEIRO
+    let transacaoDetectada = null;
+    let transacaoSalva = false;
     
-    // Verificar se a mensagem é uma transação
     try {
-      const transacaoDetectada = await openaiService.detectarTransacao(message);
+      console.log('🔍 Detectando se é uma transação...');
+      transacaoDetectada = await openaiService.detectarTransacao(message);
+      console.log('🔍 Resultado da detecção:', transacaoDetectada);
       
       if (transacaoDetectada && transacaoDetectada.isTransacao) {
-        console.log('💰 Transação detectada:', transacaoDetectada);
+        console.log('💰 TRANSAÇÃO DETECTADA!', transacaoDetectada);
         
-        // Salvar transação no banco
+        // Salvar transação no banco com user_id
         const transacaoId = db.addTransacao(
+          userId, // IMPORTANTE: user_id do usuário autenticado
           transacaoDetectada.tipo,
           transacaoDetectada.valor,
           transacaoDetectada.categoria,
@@ -471,31 +477,43 @@ app.post('/api/chat', requireAuth, async (req, res) => {
           `Chat IA: ${message}`
         );
         
-        console.log('✅ Transação salva com ID:', transacaoId);
+        console.log('✅ TRANSAÇÃO SALVA NO BANCO! ID:', transacaoId);
+        transacaoSalva = true;
         
         // Notificar clientes via WebSocket
         if (global.notifyClients) {
           global.notifyClients({
             type: 'nova_transacao',
-            data: { id: transacaoId, ...transacaoDetectada }
+            data: { id: transacaoId, userId: userId, ...transacaoDetectada }
           });
+          console.log('📡 WebSocket notificado!');
         }
-        
-        // Adicionar confirmação à resposta
-        const confirmacao = `\n\n✅ **Transação registrada com sucesso!**\n- Tipo: ${transacaoDetectada.tipo}\n- Valor: R$ ${transacaoDetectada.valor.toFixed(2)}\n- Categoria: ${transacaoDetectada.categoria}\n\nVocê pode ver no Dashboard agora! 📊`;
-        
-        // Salvar resposta da IA com confirmação
-        db.addChatMessage(userId, 'assistant', resposta + confirmacao);
-        
-        return res.json({ 
-          success: true,
-          message: resposta + confirmacao,
-          transacao: transacaoDetectada
-        });
+      } else {
+        console.log('ℹ️ Não é uma transação, apenas conversa');
       }
     } catch (error) {
-      console.error('⚠️ Erro ao detectar transação:', error.message);
-      // Continua normalmente se falhar
+      console.error('❌ ERRO ao detectar/salvar transação:', error);
+      console.error('Stack:', error.stack);
+    }
+    
+    // Obter resposta conversacional da IA
+    console.log('🤖 Processando com IA...');
+    const resposta = await openaiService.chatFinanceiro(message, historico);
+    console.log('✅ Resposta da IA recebida');
+    
+    // Se salvou transação, adicionar confirmação
+    if (transacaoSalva && transacaoDetectada) {
+      const confirmacao = `\n\n✅ **Transação registrada automaticamente no sistema!**\n- Tipo: ${transacaoDetectada.tipo === 'receita' ? 'Receita' : 'Despesa'}\n- Valor: R$ ${transacaoDetectada.valor.toFixed(2)}\n- Categoria: ${transacaoDetectada.categoria}\n\n📊 **Veja no Dashboard agora!** (aba Dashboard acima)`;
+      
+      // Salvar resposta da IA com confirmação
+      db.addChatMessage(userId, 'assistant', resposta + confirmacao);
+      
+      return res.json({ 
+        success: true,
+        message: resposta + confirmacao,
+        transacao: transacaoDetectada,
+        saved: true
+      });
     }
     
     // Salvar resposta da IA
