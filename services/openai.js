@@ -267,12 +267,31 @@ Categorias válidas:
 Despesas: Alimentação, Transporte, Moradia, Saúde, Educação, Lazer, Compras, Contas, Outros
 Receitas: Salário, Freelance, Investimentos, Outros
 
-Exemplos:
+Exemplos de DESPESAS:
 "Gastei 50 reais no mercado" → {"isTransacao": true, "tipo": "despesa", "valor": 50, "categoria": "Alimentação", "descricao": "Compras no mercado"}
-"Recebi 2000 do freelance" → {"isTransacao": true, "tipo": "receita", "valor": 2000, "categoria": "Freelance", "descricao": "Pagamento freelance"}
-"Como faço para economizar?" → {"isTransacao": false}
+"Paguei 150 de luz" → {"isTransacao": true, "tipo": "despesa", "valor": 150, "categoria": "Contas", "descricao": "Conta de luz"}
+"Uber de 25" → {"isTransacao": true, "tipo": "despesa", "valor": 25, "categoria": "Transporte", "descricao": "Uber"}
 
-IMPORTANTE: Responda APENAS com JSON válido, sem texto adicional.`
+Exemplos de RECEITAS:
+"Recebi 2000 do salário" → {"isTransacao": true, "tipo": "receita", "valor": 2000, "categoria": "Salário", "descricao": "Salário mensal"}
+"Freelance de 500" → {"isTransacao": true, "tipo": "receita", "valor": 500, "categoria": "Freelance", "descricao": "Pagamento freelance"}
+"Ganhei 100 reais" → {"isTransacao": true, "tipo": "receita", "valor": 100, "categoria": "Outros", "descricao": "Receita"}
+"Recebi 3000" → {"isTransacao": true, "tipo": "receita", "valor": 3000, "categoria": "Outros", "descricao": "Receita"}
+
+Palavras-chave para RECEITA:
+- recebi, receber, ganhei, ganhar, salário, freelance, pagamento recebido, venda, lucro
+
+Palavras-chave para DESPESA:
+- gastei, gastar, paguei, pagar, comprei, comprar, despesa, custo
+
+Exemplos que NÃO são transações:
+"Como faço para economizar?" → {"isTransacao": false}
+"Quanto gastei este mês?" → {"isTransacao": false}
+
+IMPORTANTE: 
+- Responda APENAS com JSON válido, sem texto adicional
+- Seja PRECISO na identificação de tipo (receita vs despesa)
+- Use as palavras-chave para identificar corretamente`
         },
         {
           role: "user",
