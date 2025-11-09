@@ -123,9 +123,9 @@
   font-weight: 600;
 }
 
-.user-plan.plan-free {
-  background: #e3f2fd;
-  color: #1976d2;
+.user-plan.plan-basico {
+  background: #e8f5e9;
+  color: #2e7d32;
 }
 
 .user-plan.plan-premium {

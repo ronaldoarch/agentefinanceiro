@@ -25,7 +25,7 @@ function init() {
       password TEXT NOT NULL,
       name TEXT NOT NULL,
       role TEXT DEFAULT 'user', -- 'user', 'admin'
-      plan TEXT DEFAULT 'free', -- 'free', 'premium', 'enterprise'
+      plan TEXT DEFAULT 'basico', -- 'basico', 'premium', 'enterprise'
       whatsapp_number TEXT,
       active INTEGER DEFAULT 1,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -244,7 +244,7 @@ function getEstatisticasPorCategoria(mes, ano) {
 // ================== FUNÇÕES DE USUÁRIO ==================
 
 // Criar usuário
-function createUser(email, password, name, role = 'user', plan = 'free') {
+function createUser(email, password, name, role = 'user', plan = 'basico') {
   const stmt = db.prepare(`
     INSERT INTO users (email, password, name, role, plan)
     VALUES (?, ?, ?, ?, ?)
@@ -312,7 +312,7 @@ function getAdminStats() {
     SELECT 
       COUNT(*) as total_users,
       SUM(CASE WHEN active = 1 THEN 1 ELSE 0 END) as active_users,
-      SUM(CASE WHEN plan = 'free' THEN 1 ELSE 0 END) as free_users,
+      SUM(CASE WHEN plan = 'basico' THEN 1 ELSE 0 END) as basico_users,
       SUM(CASE WHEN plan = 'premium' THEN 1 ELSE 0 END) as premium_users,
       SUM(CASE WHEN plan = 'enterprise' THEN 1 ELSE 0 END) as enterprise_users
     FROM users

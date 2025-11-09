@@ -54,16 +54,16 @@ function AdminDashboard() {
 
   function getPlanBadgeClass(plan) {
     switch (plan) {
-      case 'free': return 'badge-free';
+      case 'basico': return 'badge-basico';
       case 'premium': return 'badge-premium';
       case 'enterprise': return 'badge-enterprise';
-      default: return 'badge-free';
+      default: return 'badge-basico';
     }
   }
 
   function getPlanName(plan) {
     switch (plan) {
-      case 'free': return 'Free';
+      case 'basico': return 'Básico';
       case 'premium': return 'Premium';
       case 'enterprise': return 'Enterprise';
       default: return plan;
@@ -104,11 +104,11 @@ function AdminDashboard() {
           </div>
         </div>
 
-        <div className="stat-card free">
-          <div className="stat-icon">🆓</div>
+        <div className="stat-card basico">
+          <div className="stat-icon">💰</div>
           <div className="stat-content">
-            <h3>Plano Free</h3>
-            <p className="stat-number">{stats?.free_users || 0}</p>
+            <h3>Plano Básico</h3>
+            <p className="stat-number">{stats?.basico_users || 0}</p>
           </div>
         </div>
 
@@ -161,7 +161,7 @@ function AdminDashboard() {
                         onChange={(e) => handleUpdatePlan(u.id, e.target.value)}
                         className="plan-select"
                       >
-                        <option value="free">Free</option>
+                        <option value="basico">Básico</option>
                         <option value="premium">Premium</option>
                         <option value="enterprise">Enterprise</option>
                       </select>
@@ -215,24 +215,26 @@ function AdminDashboard() {
         <h2>💰 Informações dos Planos</h2>
         
         <div className="plans-grid">
-          <div className="plan-info-card">
-            <h3>🆓 Free</h3>
-            <p className="plan-price">R$ 0/mês</p>
+          <div className="plan-info-card basico-card">
+            <h3>💰 Básico</h3>
+            <p className="plan-price">R$ 15,00/mês</p>
             <ul>
               <li>100 transações/mês</li>
-              <li>20 mensagens IA/dia</li>
-              <li>Dashboard básico</li>
+              <li>30 mensagens IA/dia</li>
+              <li>Dashboard completo</li>
+              <li>Alertas inteligentes</li>
             </ul>
           </div>
 
           <div className="plan-info-card premium-card">
             <h3>⭐ Premium</h3>
-            <p className="plan-price">R$ 29,90/mês</p>
+            <p className="plan-price">R$ 39,90/mês</p>
             <ul>
               <li>1.000 transações/mês</li>
               <li>200 mensagens IA/dia</li>
               <li>WhatsApp integrado</li>
               <li>Transcrição de áudio</li>
+              <li>Análises avançadas</li>
             </ul>
           </div>
 
@@ -242,8 +244,9 @@ function AdminDashboard() {
             <ul>
               <li>Transações ilimitadas</li>
               <li>Mensagens IA ilimitadas</li>
-              <li>Todos os recursos</li>
-              <li>Suporte prioritário</li>
+              <li>Todos os recursos Premium</li>
+              <li>Suporte prioritário 24/7</li>
+              <li>API personalizada</li>
             </ul>
           </div>
         </div>

@@ -168,6 +168,17 @@
   font-size: 0.95rem;
 }
 
+.trial-info {
+  margin: 15px 0 0 0;
+  padding: 10px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
 @media (max-width: 768px) {
   .login-card {
     padding: 30px 20px;

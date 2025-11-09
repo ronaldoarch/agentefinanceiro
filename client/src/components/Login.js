@@ -162,13 +162,14 @@ function Login() {
         )}
 
         <div className="login-info">
-          <h3>🎁 Plano Gratuito Inclui:</h3>
+          <h3>💰 Plano Básico - R$ 15,00/mês</h3>
           <ul>
             <li>✅ 100 transações por mês</li>
-            <li>✅ Chat com IA (20 mensagens/dia)</li>
-            <li>✅ Dashboard financeiro</li>
+            <li>✅ Chat com IA (30 mensagens/dia)</li>
+            <li>✅ Dashboard financeiro completo</li>
             <li>✅ Alertas inteligentes</li>
           </ul>
+          <p className="trial-info">🎁 7 dias de teste grátis!</p>
         </div>
       </div>
     </div>

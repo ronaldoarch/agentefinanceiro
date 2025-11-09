@@ -28,7 +28,7 @@ function Header({ whatsappStatus, activeTab, setActiveTab }) {
               <div className="user-info">
                 <span className="user-name">👤 {user.name}</span>
                 <span className={`user-plan plan-${user.plan}`}>
-                  {user.plan === 'free' && '🆓 Free'}
+                  {user.plan === 'basico' && '💰 Básico'}
                   {user.plan === 'premium' && '⭐ Premium'}
                   {user.plan === 'enterprise' && '🏢 Enterprise'}
                 </span>

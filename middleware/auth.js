@@ -110,18 +110,20 @@ function checkPlanLimit(feature) {
       });
     }
 
-    const plan = req.user.plan || 'free';
+    const plan = req.user.plan || 'basico';
     
-    // Definir limites
+    // Definir limites e preços
     const limits = {
-      free: {
+      basico: {
+        price: 15.00,
         chat_enabled: true,
         audio_enabled: false,
         whatsapp_enabled: false,
         transactions_limit: 100,
-        chat_limit: 20
+        chat_limit: 30
       },
       premium: {
+        price: 39.90,
         chat_enabled: true,
         audio_enabled: true,
         whatsapp_enabled: true,
@@ -129,6 +131,7 @@ function checkPlanLimit(feature) {
         chat_limit: 200
       },
       enterprise: {
+        price: 99.90,
         chat_enabled: true,
         audio_enabled: true,
         whatsapp_enabled: true,
@@ -137,7 +140,7 @@ function checkPlanLimit(feature) {
       }
     };
 
-    const userLimits = limits[plan] || limits.free;
+    const userLimits = limits[plan] || limits.basico;
 
     // Verificar se o recurso está disponível
     if (feature && userLimits[feature] === false) {

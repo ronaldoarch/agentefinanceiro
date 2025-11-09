@@ -154,7 +154,7 @@ app.put('/api/admin/users/:id/plan', requireAuth, requireAdmin, (req, res) => {
     const { id } = req.params;
     const { plan } = req.body;
     
-    if (!['free', 'premium', 'enterprise'].includes(plan)) {
+    if (!['basico', 'premium', 'enterprise'].includes(plan)) {
       return res.status(400).json({ error: 'Plano inválido' });
     }
     
