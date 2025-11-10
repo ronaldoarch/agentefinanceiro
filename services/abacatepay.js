@@ -60,24 +60,25 @@ async function createPixCharge(params) {
       }
     );
 
-    console.log('✅ QR Code PIX criado com sucesso!');
-    console.log('   Billing ID:', response.data.id);
-    console.log('   URL:', response.data.url);
-    console.log('   Status:', response.data.status);
+    // AbacatePay retorna { error: null, data: {...} }
+    const billing = response.data.data;
     
-    // Log completo da resposta para debug
-    console.log('📦 Resposta completa do AbacatePay:');
-    console.log(JSON.stringify(response.data, null, 2));
+    console.log('✅ QR Code PIX criado com sucesso!');
+    console.log('   Billing ID:', billing.id);
+    console.log('   URL:', billing.url);
+    console.log('   Status:', billing.status);
+    console.log('   Dev Mode:', billing.devMode);
 
     return {
       success: true,
-      billingId: response.data.id,
-      url: response.data.url, // URL da página de pagamento
-      qrCode: response.data.metadata?.qrCode || response.data.qrCode, // QR Code se disponível
-      pixCopiaECola: response.data.metadata?.pixCopyPaste || response.data.pixCopyPaste,
-      status: response.data.status,
-      amount: params.amount,
-      expiresAt: response.data.expiresAt
+      billingId: billing.id,
+      url: billing.url, // URL da página de pagamento AbacatePay
+      status: billing.status,
+      amount: billing.amount,
+      devMode: billing.devMode,
+      // AbacatePay não retorna QR Code diretamente, apenas URL da página
+      qrCode: null, 
+      pixCopiaECola: null
     };
 
   } catch (error) {
@@ -114,14 +115,14 @@ async function getChargeStatus(billingId) {
       }
     );
 
-    const billing = response.data;
+    const billing = response.data.data; // AbacatePay retorna { error, data }
 
     return {
       success: true,
       status: billing.status, // PENDING, PAID, EXPIRED, CANCELLED
       paidAt: billing.paidAt,
       amount: billing.amount,
-      expiresAt: billing.expiresAt
+      url: billing.url
     };
 
   } catch (error) {

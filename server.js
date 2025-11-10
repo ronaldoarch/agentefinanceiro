@@ -237,11 +237,10 @@ app.post('/api/payments/request', requireAuth, async (req, res) => {
       billing_id: pixResult.billingId,
       plan: plan,
       amount: amount,
-      qr_code: pixResult.qrCode,
-      pix_copia_cola: pixResult.pixCopiaECola,
-      payment_url: pixResult.url,
-      expires_at: pixResult.expiresAt,
-      message: 'QR Code PIX gerado com sucesso!'
+      payment_url: pixResult.url, // URL da página de pagamento AbacatePay
+      dev_mode: pixResult.devMode,
+      status: pixResult.status,
+      message: 'Pagamento criado! Acesse a página de pagamento para ver o QR Code PIX.'
     });
     
   } catch (error) {
