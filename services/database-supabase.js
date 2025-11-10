@@ -254,10 +254,18 @@ async function getEstatisticasPorCategoria(userId, mes, ano) {
 
 // ================== USUÁRIOS ==================
 
-async function createUser(email, password, name, role = 'user', plan = 'basico') {
+async function createUser(email, password, name, role = 'user', plan = 'basico', taxId = null, phone = null) {
   const { data, error } = await supabase
     .from('users')
-    .insert({ email, password, name, role, plan })
+    .insert({ 
+      email, 
+      password, 
+      name, 
+      role, 
+      plan,
+      tax_id: taxId,
+      phone: phone
+    })
     .select()
     .single();
   

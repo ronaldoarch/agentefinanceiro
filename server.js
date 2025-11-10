@@ -108,9 +108,9 @@ serverPromise.then(server => {
 // Registro
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, name, taxId, phone } = req.body;
     
-    const result = await authService.register(email, password, name);
+    const result = await authService.register(email, password, name, taxId, phone);
     
     res.json(result);
   } catch (error) {
@@ -188,6 +188,16 @@ app.post('/api/payments/request', requireAuth, async (req, res) => {
     console.log(`   Plano: ${plan}`);
     console.log(`   Valor: R$ ${amount}`);
     
+    // Validar se usuário tem CPF cadastrado
+    if (!user.tax_id) {
+      console.error('❌ Usuário sem CPF cadastrado');
+      return res.status(400).json({
+        success: false,
+        error: 'CPF não cadastrado. Por favor, atualize seu perfil com CPF antes de fazer upgrade.',
+        code: 'TAX_ID_REQUIRED'
+      });
+    }
+
     // Criar QR Code PIX no AbacatePay
     const pixResult = await abacatepayService.createPixCharge({
       amount: Math.round(amount * 100), // Converter para centavos
@@ -196,8 +206,7 @@ app.post('/api/payments/request', requireAuth, async (req, res) => {
       customerName: user.name || user.email,
       customerEmail: user.email,
       customerCellphone: user.phone || '(11) 99999-9999',
-      // Em dev mode, usa CPF de teste válido se usuário não tiver
-      customerTaxId: user.taxId || '123.456.789-09', // CPF de teste válido
+      customerTaxId: user.tax_id, // CPF real do usuário
       returnUrl: `${process.env.APP_URL || 'http://localhost:3001'}/dashboard`,
       completionUrl: `${process.env.APP_URL || 'http://localhost:3001'}/payment/success`
     });

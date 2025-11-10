@@ -38,7 +38,7 @@ function verifyToken(token) {
 }
 
 // Registrar novo usuário
-async function register(email, password, name) {
+async function register(email, password, name, taxId = null, phone = null) {
   try {
     // Verificar se email já existe
     const existingUser = await db.getUserByEmail(email);
@@ -55,11 +55,19 @@ async function register(email, password, name) {
       throw new Error('Senha deve ter no mínimo 6 caracteres');
     }
 
+    // Validar CPF se fornecido
+    if (taxId) {
+      const cpfLimpo = taxId.replace(/\D/g, '');
+      if (cpfLimpo.length !== 11 && cpfLimpo.length !== 14) {
+        throw new Error('CPF/CNPJ inválido');
+      }
+    }
+
     // Hash da senha
     const hashedPassword = await hashPassword(password);
 
     // Criar usuário
-    const userId = await db.createUser(email, hashedPassword, name);
+    const userId = await db.createUser(email, hashedPassword, name, 'user', 'basico', taxId, phone);
 
     // Buscar usuário criado
     const user = await db.getUserById(userId);
