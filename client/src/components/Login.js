@@ -5,10 +5,32 @@ import './Login.css';
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [taxId, setTaxId] = useState('');
+  const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
   const { login, register } = useAuth();
+  
+  // Formatar CPF (000.000.000-00)
+  function formatCPF(value) {
+    return value
+      .replace(/\D/g, '')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+      .substring(0, 14);
+  }
+  
+  // Formatar telefone ((11) 99999-9999)
+  function formatPhone(value) {
+    return value
+      .replace(/\D/g, '')
+      .replace(/(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{5})(\d)/, '$1-$2')
+      .substring(0, 15);
+  }
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -29,8 +51,15 @@ function Login() {
     setError('');
     setLoading(true);
 
-    const name = document.getElementById('register-name').value;
-    const result = await register(email, password, name);
+    // Validar CPF
+    const cpfLimpo = taxId.replace(/\D/g, '');
+    if (cpfLimpo.length !== 11) {
+      setError('CPF inválido. Digite os 11 dígitos.');
+      setLoading(false);
+      return;
+    }
+
+    const result = await register(email, password, name, taxId, phone);
 
     if (!result.success) {
       setError(result.error);
@@ -106,11 +135,12 @@ function Login() {
             <h2>Criar Conta</h2>
             
             <div className="form-group">
-              <label>Nome</label>
+              <label>Nome Completo</label>
               <input
                 type="text"
-                id="register-name"
-                placeholder="Seu nome"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Seu nome completo"
                 required
                 disabled={loading}
               />
@@ -124,6 +154,30 @@ function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="seu@email.com"
                 required
+                disabled={loading}
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>CPF <span className="required">*</span></label>
+              <input
+                type="text"
+                value={taxId}
+                onChange={(e) => setTaxId(formatCPF(e.target.value))}
+                placeholder="000.000.000-00"
+                required
+                disabled={loading}
+              />
+              <small className="field-help">Necessário para pagamentos via PIX</small>
+            </div>
+            
+            <div className="form-group">
+              <label>Telefone <span className="optional">(opcional)</span></label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(formatPhone(e.target.value))}
+                placeholder="(11) 99999-9999"
                 disabled={loading}
               />
             </div>

@@ -66,9 +66,15 @@ export function AuthProvider({ children }) {
     }
   }
 
-  async function register(email, password, name) {
+  async function register(email, password, name, taxId = null, phone = null) {
     try {
-      const response = await axios.post('/api/auth/register', { email, password, name });
+      const response = await axios.post('/api/auth/register', { 
+        email, 
+        password, 
+        name,
+        taxId,
+        phone
+      });
       
       if (response.data.success) {
         const { token: newToken, user: newUser } = response.data;

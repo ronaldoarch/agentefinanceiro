@@ -54,13 +54,61 @@ function Upgrade({ onClose }) {
         plan: selectedPlan
       });
       
-      setPaymentId(response.data.payment_id);
-      setShowQRCode(true);
+      const { payment_url, payment_id } = response.data;
+      
+      if (payment_url) {
+        // Salvar payment_id para verificação posterior
+        setPaymentId(payment_id);
+        
+        // Redirecionar para página de pagamento do AbacatePay
+        alert(`✅ Pagamento criado!\n\nVocê será redirecionado para a página de pagamento PIX do AbacatePay.\n\nApós pagar, seu plano será atualizado automaticamente!`);
+        
+        // Abrir página do AbacatePay
+        window.open(payment_url, '_blank');
+        
+        // Mostrar tela de aguardando pagamento
+        setShowQRCode(true);
+        
+        // Iniciar verificação automática de pagamento
+        startPaymentPolling(payment_id);
+      } else {
+        alert('Erro: URL de pagamento não foi gerada. Tente novamente.');
+      }
+      
     } catch (error) {
       alert('Erro ao solicitar pagamento: ' + error.response?.data?.error);
     } finally {
       setLoading(false);
     }
+  }
+  
+  // Verificar status do pagamento automaticamente
+  function startPaymentPolling(paymentId) {
+    let attempts = 0;
+    const maxAttempts = 60; // 60 tentativas = 3 minutos
+    
+    const interval = setInterval(async () => {
+      attempts++;
+      
+      try {
+        const response = await axios.get(`/api/payments/${paymentId}/status`);
+        
+        if (response.data.status === 'paid') {
+          clearInterval(interval);
+          alert('🎉 PAGAMENTO CONFIRMADO!\n\nSeu plano foi atualizado com sucesso!\n\nRecarregando página...');
+          window.location.reload();
+        }
+        
+        // Parar após número máximo de tentativas
+        if (attempts >= maxAttempts) {
+          clearInterval(interval);
+          console.log('⏰ Timeout: parou de verificar pagamento após 3 minutos');
+        }
+        
+      } catch (error) {
+        console.error('Erro ao verificar status:', error);
+      }
+    }, 3000); // A cada 3 segundos
   }
 
   if (showQRCode) {
@@ -69,7 +117,7 @@ function Upgrade({ onClose }) {
         <div className="upgrade-content pix-payment">
           <button className="close-btn" onClick={onClose}>✕</button>
           
-          <h2>💳 Pagamento via PIX</h2>
+          <h2>⏳ Aguardando Pagamento PIX</h2>
           
           <div className="payment-details">
             <div className="plan-selected">
@@ -77,52 +125,52 @@ function Upgrade({ onClose }) {
               <p className="price">R$ {plans[selectedPlan].price.toFixed(2)}/mês</p>
             </div>
 
-            <div className="qr-code-container">
-              <h4>📱 Escaneie o QR Code:</h4>
+            <div className="payment-waiting">
+              <div className="success-icon">✅</div>
               
-              {/* QR Code do PagBank - RONALDO DIAS DE SOUSA */}
-              <div className="qr-code-display">
-                <div className="qr-code-placeholder">
-                  <p>🔄 Carregando QR Code...</p>
-                  <p className="instructions">
-                    Use este QR Code para pagar R$ {plans[selectedPlan].price.toFixed(2)}
-                  </p>
-                  <div className="pix-info">
-                    <p><strong>Favorecido:</strong> RONALDO DIAS DE SOUSA</p>
-                    <p><strong>Valor:</strong> R$ {plans[selectedPlan].price.toFixed(2)}</p>
-                    <p><strong>ID Pagamento:</strong> #{paymentId}</p>
-                  </div>
-                </div>
-              </div>
+              <h3>Pagamento Criado com Sucesso!</h3>
+              
+              <p className="payment-info">
+                <strong>ID do Pagamento:</strong> #{paymentId}<br/>
+                <strong>Valor:</strong> R$ {plans[selectedPlan].price.toFixed(2)}<br/>
+                <strong>Plano:</strong> {plans[selectedPlan].name}
+              </p>
 
-              <div className="payment-instructions">
-                <h4>📋 Como pagar:</h4>
+              <div className="payment-instructions-box">
+                <h4>📱 Como Pagar:</h4>
                 <ol>
-                  <li>Abra o app do seu banco</li>
-                  <li>Vá em "PIX" → "Pagar com QR Code"</li>
-                  <li>Escaneie o QR Code acima</li>
-                  <li>Confirme o pagamento de R$ {plans[selectedPlan].price.toFixed(2)}</li>
-                  <li>Aguarde a aprovação (até 24h úteis)</li>
+                  <li>Uma nova aba foi aberta com a página de pagamento do <strong>AbacatePay</strong></li>
+                  <li>Escaneie o <strong>QR Code PIX</strong> que aparece lá</li>
+                  <li>Confirme o pagamento no app do seu banco</li>
+                  <li>Aguarde a confirmação <strong>automática</strong></li>
                 </ol>
+                
+                <p className="help-text">
+                  💡 Se a aba não abriu, <a href="#" onClick={(e) => {
+                    e.preventDefault();
+                    alert('Por favor, permita pop-ups do site nas configurações do navegador.');
+                  }}>clique aqui</a> para ver instruções.
+                </p>
               </div>
 
               <div className="payment-status">
-                <p className="status-pending">
-                  ⏳ Aguardando confirmação do pagamento...
-                </p>
+                <div className="status-pending">
+                  <div className="spinner"></div>
+                  <p><strong>Aguardando confirmação do pagamento...</strong></p>
+                </div>
                 <p className="status-info">
-                  Seu plano será ativado automaticamente após a confirmação.
-                  Você receberá um email de confirmação.
+                  ✨ Seu plano será ativado <strong>automaticamente</strong> após a confirmação do PIX.<br/>
+                  ⏱️ Geralmente leva apenas alguns segundos!
                 </p>
               </div>
             </div>
 
             <div className="action-buttons">
               <button className="btn-secondary" onClick={onClose}>
-                Voltar
+                Fechar
               </button>
               <button className="btn-primary" onClick={() => window.location.reload()}>
-                Já Fiz o Pagamento
+                ✓ Já Fiz o Pagamento
               </button>
             </div>
           </div>

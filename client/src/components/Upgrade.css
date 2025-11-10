@@ -51,6 +51,115 @@
   max-width: 600px;
 }
 
+/* Tela de aguardando pagamento */
+.payment-waiting {
+  text-align: center;
+  padding: 20px;
+}
+
+.success-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+  animation: bounce 0.6s ease-out;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+.payment-waiting h3 {
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 1.5rem;
+}
+
+.payment-info {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 12px;
+  margin: 20px 0;
+  line-height: 1.8;
+  color: #555;
+}
+
+.payment-instructions-box {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  padding: 25px;
+  border-radius: 12px;
+  margin: 20px 0;
+  text-align: left;
+}
+
+.payment-instructions-box h4 {
+  color: #667eea;
+  margin-bottom: 15px;
+  font-size: 1.1rem;
+}
+
+.payment-instructions-box ol {
+  margin: 15px 0;
+  padding-left: 25px;
+}
+
+.payment-instructions-box ol li {
+  margin: 10px 0;
+  line-height: 1.6;
+  color: #444;
+}
+
+.help-text {
+  margin-top: 15px;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.help-text a {
+  color: #667eea;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.payment-status {
+  margin: 30px 0;
+}
+
+.status-pending {
+  background: #fff3cd;
+  border: 2px solid #ffc107;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+}
+
+.status-pending p {
+  margin: 0;
+  color: #856404;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #ffc107;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.status-info {
+  color: #666;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
 .close-btn {
   position: absolute;
   top: 15px;
