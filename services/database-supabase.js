@@ -156,9 +156,11 @@ async function deleteAllTransacoes(userId, mesAno = null) {
       .eq('user_id', userId);
     
     if (mesAno) {
-      const [ano, mes] = mesAno.split('-');
-      countQuery = countQuery.ilike('data', `${ano}-${mes}%`);
-      console.log(`🗑️ Filtrando por período: ${mesAno}`);
+      // Calcular início e fim do mês usando moment
+      const inicioMes = moment(mesAno, 'YYYY-MM').startOf('month').toISOString();
+      const fimMes = moment(mesAno, 'YYYY-MM').endOf('month').toISOString();
+      countQuery = countQuery.gte('data', inicioMes).lte('data', fimMes);
+      console.log(`🗑️ Filtrando por período: ${inicioMes} até ${fimMes}`);
     }
     
     const { count: totalTransacoes, error: countError } = await countQuery;
@@ -182,8 +184,10 @@ async function deleteAllTransacoes(userId, mesAno = null) {
       .eq('user_id', userId);
     
     if (mesAno) {
-      const [ano, mes] = mesAno.split('-');
-      deleteQuery = deleteQuery.ilike('data', `${ano}-${mes}%`);
+      // Usar mesmos filtros de data
+      const inicioMes = moment(mesAno, 'YYYY-MM').startOf('month').toISOString();
+      const fimMes = moment(mesAno, 'YYYY-MM').endOf('month').toISOString();
+      deleteQuery = deleteQuery.gte('data', inicioMes).lte('data', fimMes);
     }
     
     const { error: deleteError } = await deleteQuery;
