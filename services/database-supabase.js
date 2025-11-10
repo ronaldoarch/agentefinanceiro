@@ -148,27 +148,57 @@ async function deleteLastTransacaoByValor(userId, valor) {
 async function deleteAllTransacoes(userId, mesAno = null) {
   console.log(`🗑️ DELETANDO TODAS as transações do usuário ${userId}`);
   
-  let query = supabase
-    .from('transacoes')
-    .delete()
-    .eq('user_id', userId);
-  
-  // Se foi especificado um mês/ano, filtrar por período
-  if (mesAno) {
-    const [ano, mes] = mesAno.split('-');
-    query = query.ilike('data', `${ano}-${mes}%`);
-    console.log(`🗑️ Filtrando por período: ${mesAno}`);
+  try {
+    // Primeiro, buscar quantas transações serão deletadas
+    let countQuery = supabase
+      .from('transacoes')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+    
+    if (mesAno) {
+      const [ano, mes] = mesAno.split('-');
+      countQuery = countQuery.ilike('data', `${ano}-${mes}%`);
+      console.log(`🗑️ Filtrando por período: ${mesAno}`);
+    }
+    
+    const { count: totalTransacoes, error: countError } = await countQuery;
+    
+    if (countError) {
+      console.error('❌ Erro ao contar transações:', countError);
+      return { success: false, count: 0, error: countError.message };
+    }
+    
+    console.log(`📊 Total de transações a deletar: ${totalTransacoes}`);
+    
+    if (totalTransacoes === 0) {
+      console.log('ℹ️ Nenhuma transação encontrada para deletar');
+      return { success: true, count: 0 };
+    }
+    
+    // Agora deletar as transações
+    let deleteQuery = supabase
+      .from('transacoes')
+      .delete()
+      .eq('user_id', userId);
+    
+    if (mesAno) {
+      const [ano, mes] = mesAno.split('-');
+      deleteQuery = deleteQuery.ilike('data', `${ano}-${mes}%`);
+    }
+    
+    const { error: deleteError } = await deleteQuery;
+    
+    if (deleteError) {
+      console.error('❌ Erro ao deletar transações:', deleteError);
+      return { success: false, count: 0, error: deleteError.message };
+    }
+    
+    console.log(`✅ ${totalTransacoes} transação(ões) deletada(s) do Supabase!`);
+    return { success: true, count: totalTransacoes };
+  } catch (error) {
+    console.error('❌ Erro geral ao deletar transações:', error);
+    return { success: false, count: 0, error: error.message };
   }
-  
-  const { error, count } = await query;
-  
-  if (error) {
-    console.error('❌ Erro ao deletar transações:', error);
-    return { success: false, count: 0 };
-  }
-  
-  console.log(`✅ Todas as transações deletadas do Supabase!`);
-  return { success: true, count: count || 0 };
 }
 
 async function getResumo(userId) {

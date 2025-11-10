@@ -695,33 +695,56 @@ app.post('/api/chat', requireAuth, async (req, res) => {
     if (limpezaDetectada && limpezaDetectada.isLimpezaTotal) {
       console.log('🧹 LIMPEZA TOTAL DETECTADA!');
       
-      // Buscar o resumo atual antes de limpar
-      const resumoAntes = await db.getResumo(userId);
-      const moment = require('moment');
-      const mesAnoAtual = moment().format('YYYY-MM');
-      
-      // Deletar todas as transações do mês atual
-      const resultado = await db.deleteAllTransacoes(userId, mesAnoAtual);
-      
-      if (resultado.success) {
-        const confirmacao = `✅ **Tudo limpo!** Removi todas as suas transações de ${moment().format('MMMM YYYY')}, incluindo receitas e despesas. Seu resumo financeiro para este mês agora está completamente zerado:\n\n- Receitas: R$ 0.00\n- Despesas: R$ 0.00\n- Saldo: R$ 0.00\n\nAgora você tem uma tela limpa para começar de novo! Se precisar de ajuda para planejar suas próximas movimentações financeiras, é só chamar! ✅🎇`;
-        await db.addChatMessage(userId, 'assistant', confirmacao);
+      try {
+        // Buscar o resumo atual antes de limpar
+        const resumoAntes = await db.getResumo(userId);
+        const moment = require('moment');
+        const mesAnoAtual = moment().format('YYYY-MM');
         
-        // Notificar WebSocket
-        if (global.notifyClients) {
-          global.notifyClients({
-            type: 'transacoes_limpas',
-            data: { userId: userId, mesAno: mesAnoAtual }
+        console.log(`📊 Resumo antes de limpar:`, resumoAntes);
+        console.log(`📅 Mês/Ano para limpeza: ${mesAnoAtual}`);
+        
+        // Deletar todas as transações do mês atual
+        const resultado = await db.deleteAllTransacoes(userId, mesAnoAtual);
+        
+        console.log(`🔍 Resultado da limpeza:`, resultado);
+        
+        if (resultado.success) {
+          const quantidadeDeletada = resultado.count || 0;
+          let confirmacao;
+          
+          if (quantidadeDeletada === 0) {
+            confirmacao = `✅ **Pronto!** Você não tinha nenhuma transação registrada em ${moment().format('MMMM YYYY')}.\n\n- Receitas: R$ 0.00\n- Despesas: R$ 0.00\n- Saldo: R$ 0.00\n\nComece a registrar suas transações quando quiser! 🎇`;
+          } else {
+            confirmacao = `✅ **Tudo limpo!** Removi **${quantidadeDeletada} transação(ões)** de ${moment().format('MMMM YYYY')}, incluindo receitas e despesas.\n\nSeu resumo financeiro para este mês agora está completamente zerado:\n\n- Receitas: R$ 0.00\n- Despesas: R$ 0.00\n- Saldo: R$ 0.00\n\nAgora você tem uma tela limpa para começar de novo! Se precisar de ajuda para planejar suas próximas movimentações financeiras, é só chamar! ✅🎇`;
+          }
+          
+          await db.addChatMessage(userId, 'assistant', confirmacao);
+          
+          // Notificar WebSocket
+          if (global.notifyClients) {
+            global.notifyClients({
+              type: 'transacoes_limpas',
+              data: { userId: userId, mesAno: mesAnoAtual, count: quantidadeDeletada }
+            });
+          }
+          
+          return res.json({
+            success: true,
+            message: confirmacao,
+            cleared: true,
+            count: quantidadeDeletada
           });
+        } else {
+          const erroDetalhado = resultado.error || 'Erro desconhecido';
+          console.error('❌ Erro ao limpar transações:', erroDetalhado);
+          const erro = `❌ Ocorreu um erro ao tentar limpar as transações: ${erroDetalhado}\n\nPor favor, tente novamente ou entre em contato com o suporte.`;
+          await db.addChatMessage(userId, 'assistant', erro);
+          return res.json({ success: true, message: erro });
         }
-        
-        return res.json({
-          success: true,
-          message: confirmacao,
-          cleared: true
-        });
-      } else {
-        const erro = `❌ Ocorreu um erro ao tentar limpar as transações. Tente novamente.`;
+      } catch (error) {
+        console.error('❌ Erro crítico ao processar limpeza:', error);
+        const erro = `❌ Erro inesperado ao limpar transações: ${error.message}\n\nPor favor, tente novamente.`;
         await db.addChatMessage(userId, 'assistant', erro);
         return res.json({ success: true, message: erro });
       }
