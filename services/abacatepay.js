@@ -62,13 +62,19 @@ async function createPixCharge(params) {
 
     console.log('✅ QR Code PIX criado com sucesso!');
     console.log('   Billing ID:', response.data.id);
+    console.log('   URL:', response.data.url);
+    console.log('   Status:', response.data.status);
+    
+    // Log completo da resposta para debug
+    console.log('📦 Resposta completa do AbacatePay:');
+    console.log(JSON.stringify(response.data, null, 2));
 
     return {
       success: true,
       billingId: response.data.id,
       url: response.data.url, // URL da página de pagamento
-      qrCode: response.data.metadata?.qrCode, // QR Code se disponível
-      pixCopiaECola: response.data.metadata?.pixCopyPaste,
+      qrCode: response.data.metadata?.qrCode || response.data.qrCode, // QR Code se disponível
+      pixCopiaECola: response.data.metadata?.pixCopyPaste || response.data.pixCopyPaste,
       status: response.data.status,
       amount: params.amount,
       expiresAt: response.data.expiresAt
