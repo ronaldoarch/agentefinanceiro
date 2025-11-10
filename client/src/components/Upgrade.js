@@ -54,14 +54,18 @@ function Upgrade({ onClose }) {
         plan: selectedPlan
       });
       
-      const { payment_url, payment_id } = response.data;
+      const { payment_url, payment_id, dev_mode } = response.data;
       
       if (payment_url) {
         // Salvar payment_id para verificação posterior
         setPaymentId(payment_id);
         
-        // Redirecionar para página de pagamento do AbacatePay
-        alert(`✅ Pagamento criado!\n\nVocê será redirecionado para a página de pagamento PIX do AbacatePay.\n\nApós pagar, seu plano será atualizado automaticamente!`);
+        // Mensagem diferente para modo dev
+        if (dev_mode) {
+          alert(`✅ Pagamento TESTE criado!\n\n🔧 MODO DE DESENVOLVIMENTO\n\nVocê será redirecionado para a página de pagamento do AbacatePay.\n\nEste é um pagamento de teste e não será cobrado.\n\nApós "pagar", seu plano será atualizado automaticamente!`);
+        } else {
+          alert(`✅ Pagamento criado!\n\nVocê será redirecionado para a página de pagamento PIX do AbacatePay.\n\nApós pagar, seu plano será atualizado automaticamente!`);
+        }
         
         // Abrir página do AbacatePay
         window.open(payment_url, '_blank');
@@ -72,11 +76,13 @@ function Upgrade({ onClose }) {
         // Iniciar verificação automática de pagamento
         startPaymentPolling(payment_id);
       } else {
-        alert('Erro: URL de pagamento não foi gerada. Tente novamente.');
+        alert('❌ Erro: URL de pagamento não foi gerada. Tente novamente.');
       }
       
     } catch (error) {
-      alert('Erro ao solicitar pagamento: ' + error.response?.data?.error);
+      console.error('Erro completo:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Erro desconhecido';
+      alert(`❌ Erro ao solicitar pagamento:\n\n${errorMessage}\n\nPor favor, tente novamente ou entre em contato com o suporte.`);
     } finally {
       setLoading(false);
     }
@@ -255,6 +261,11 @@ function Upgrade({ onClose }) {
           <p>🎁 <strong>7 dias de teste grátis</strong> para todos os planos!</p>
           <p>💳 Pagamento seguro via PIX</p>
           <p>🔒 Cancele quando quiser</p>
+          {process.env.NODE_ENV !== 'production' && (
+            <p style={{color: '#ff9800', fontWeight: 'bold', marginTop: '10px'}}>
+              🔧 Modo de Desenvolvimento - Pagamentos de teste
+            </p>
+          )}
         </div>
       </div>
     </div>

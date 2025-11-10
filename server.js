@@ -188,8 +188,11 @@ app.post('/api/payments/request', requireAuth, async (req, res) => {
     console.log(`   Plano: ${plan}`);
     console.log(`   Valor: R$ ${amount}`);
     
-    // Validar se usuário tem CPF cadastrado
-    if (!user.tax_id) {
+    // Validar se usuário tem CPF cadastrado (exceto em modo dev)
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    const taxId = user.tax_id || (isDevelopment ? '123.456.789-00' : null);
+    
+    if (!taxId) {
       console.error('❌ Usuário sem CPF cadastrado');
       return res.status(400).json({
         success: false,
@@ -197,16 +200,20 @@ app.post('/api/payments/request', requireAuth, async (req, res) => {
         code: 'TAX_ID_REQUIRED'
       });
     }
+    
+    if (isDevelopment && !user.tax_id) {
+      console.log('⚠️ MODO DE DESENVOLVIMENTO: Usando CPF de teste');
+    }
 
     // Criar QR Code PIX no AbacatePay
     const pixResult = await abacatepayService.createPixCharge({
       amount: Math.round(amount * 100), // Converter para centavos
       description: `${planNames[plan]} - Agente Financeiro`,
       paymentId: paymentId.toString(),
-      customerName: user.name || user.email,
-      customerEmail: user.email,
+      customerName: user.name || user.email || 'Usuário Teste',
+      customerEmail: user.email || 'teste@exemplo.com',
       customerCellphone: user.phone || '(11) 99999-9999',
-      customerTaxId: user.tax_id, // CPF real do usuário
+      customerTaxId: taxId,
       returnUrl: `${process.env.APP_URL || 'http://localhost:3001'}/dashboard`,
       completionUrl: `${process.env.APP_URL || 'http://localhost:3001'}/payment/success`
     });
