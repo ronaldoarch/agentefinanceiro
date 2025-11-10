@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import './Upgrade.css';
@@ -118,7 +119,7 @@ function Upgrade({ onClose }) {
   }
 
   if (showQRCode) {
-    return (
+    return ReactDOM.createPortal(
       <div className="upgrade-modal">
         <div className="upgrade-content pix-payment">
           <button className="close-btn" onClick={onClose}>✕</button>
@@ -181,11 +182,12 @@ function Upgrade({ onClose }) {
             </div>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   }
 
-  return (
+  return ReactDOM.createPortal(
     <div className="upgrade-modal">
       <div className="upgrade-content">
         <button className="close-btn" onClick={onClose}>✕</button>
@@ -268,7 +270,8 @@ function Upgrade({ onClose }) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
