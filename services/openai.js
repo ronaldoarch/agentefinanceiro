@@ -359,6 +359,45 @@ async function detectarDelecao(mensagem) {
   }
 }
 
+// Detectar se quer limpar TODAS as transações
+async function detectarLimpezaTotal(mensagem) {
+  try {
+    const mensagemLower = mensagem.toLowerCase();
+    
+    // Palavras-chave para limpar tudo
+    const keywordsTudo = ['tudo', 'todas', 'todos', 'total', 'completamente'];
+    const keywordsLimpar = ['limpar', 'limpe', 'resetar', 'reset', 'zerar', 'zerar', 'apagar', 'remover', 'deletar'];
+    
+    const temTudo = keywordsTudo.some(k => mensagemLower.includes(k));
+    const temLimpar = keywordsLimpar.some(k => mensagemLower.includes(k));
+    
+    // Verificar frases específicas
+    const frasesEspecificas = [
+      'remove tudo',
+      'remover tudo',
+      'apagar tudo',
+      'deletar tudo',
+      'limpar tudo',
+      'zerar tudo',
+      'limpar transações',
+      'apagar transações',
+      'remover transações',
+      'resetar tudo',
+      'começar do zero',
+      'vamos limpar'
+    ];
+    
+    const temFraseEspecifica = frasesEspecificas.some(f => mensagemLower.includes(f));
+    
+    return {
+      isLimpezaTotal: (temTudo && temLimpar) || temFraseEspecifica
+    };
+  } catch (error) {
+    console.error('Erro ao detectar limpeza total:', error);
+    return { isLimpezaTotal: false };
+  }
+}
+
 module.exports = {
   processarMensagemFinanceira,
   gerarResumo,
@@ -366,6 +405,7 @@ module.exports = {
   transcreverAudio,
   chatFinanceiro,
   detectarTransacao,
-  detectarDelecao
+  detectarDelecao,
+  detectarLimpezaTotal
 };
 

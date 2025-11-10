@@ -690,6 +690,43 @@ app.post('/api/chat', requireAuth, async (req, res) => {
       }
     }
     
+    // Verificar se quer limpar TODAS as transações
+    const limpezaDetectada = await openaiService.detectarLimpezaTotal(message);
+    if (limpezaDetectada && limpezaDetectada.isLimpezaTotal) {
+      console.log('🧹 LIMPEZA TOTAL DETECTADA!');
+      
+      // Buscar o resumo atual antes de limpar
+      const resumoAntes = await db.getResumo(userId);
+      const moment = require('moment');
+      const mesAnoAtual = moment().format('YYYY-MM');
+      
+      // Deletar todas as transações do mês atual
+      const resultado = await db.deleteAllTransacoes(userId, mesAnoAtual);
+      
+      if (resultado.success) {
+        const confirmacao = `✅ **Tudo limpo!** Removi todas as suas transações de ${moment().format('MMMM YYYY')}, incluindo receitas e despesas. Seu resumo financeiro para este mês agora está completamente zerado:\n\n- Receitas: R$ 0.00\n- Despesas: R$ 0.00\n- Saldo: R$ 0.00\n\nAgora você tem uma tela limpa para começar de novo! Se precisar de ajuda para planejar suas próximas movimentações financeiras, é só chamar! ✅🎇`;
+        await db.addChatMessage(userId, 'assistant', confirmacao);
+        
+        // Notificar WebSocket
+        if (global.notifyClients) {
+          global.notifyClients({
+            type: 'transacoes_limpas',
+            data: { userId: userId, mesAno: mesAnoAtual }
+          });
+        }
+        
+        return res.json({
+          success: true,
+          message: confirmacao,
+          cleared: true
+        });
+      } else {
+        const erro = `❌ Ocorreu um erro ao tentar limpar as transações. Tente novamente.`;
+        await db.addChatMessage(userId, 'assistant', erro);
+        return res.json({ success: true, message: erro });
+      }
+    }
+    
     // SEMPRE tentar detectar transação PRIMEIRO
     let transacoesDetectadas = [];
     let transacoesSalvas = [];

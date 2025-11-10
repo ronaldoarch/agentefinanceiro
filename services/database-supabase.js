@@ -145,6 +145,32 @@ async function deleteLastTransacaoByValor(userId, valor) {
   return await deleteTransacao(userId, data.id);
 }
 
+async function deleteAllTransacoes(userId, mesAno = null) {
+  console.log(`🗑️ DELETANDO TODAS as transações do usuário ${userId}`);
+  
+  let query = supabase
+    .from('transacoes')
+    .delete()
+    .eq('user_id', userId);
+  
+  // Se foi especificado um mês/ano, filtrar por período
+  if (mesAno) {
+    const [ano, mes] = mesAno.split('-');
+    query = query.ilike('data', `${ano}-${mes}%`);
+    console.log(`🗑️ Filtrando por período: ${mesAno}`);
+  }
+  
+  const { error, count } = await query;
+  
+  if (error) {
+    console.error('❌ Erro ao deletar transações:', error);
+    return { success: false, count: 0 };
+  }
+  
+  console.log(`✅ Todas as transações deletadas do Supabase!`);
+  return { success: true, count: count || 0 };
+}
+
 async function getResumo(userId) {
   const inicioMes = moment().startOf('month').toISOString();
   
@@ -526,6 +552,7 @@ module.exports = {
   getTransacoesPorPeriodo,
   deleteTransacao,
   deleteLastTransacaoByValor,
+  deleteAllTransacoes,
   getResumo,
   getResumoMensal,
   addAlerta,
