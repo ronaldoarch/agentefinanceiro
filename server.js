@@ -10,6 +10,7 @@ const whatsappService = require('./services/whatsapp');
 const db = require('./services/database-supabase');
 const openaiService = require('./services/openai');
 const authService = require('./services/auth');
+const abacatepayService = require('./services/abacatepay');
 const { requireAuth, requireAdmin, checkPlanLimit } = require('./middleware/auth');
 const WebSocket = require('ws');
 
@@ -154,10 +155,11 @@ app.post('/api/auth/logout', (req, res) => {
 
 // ================== ROTAS DE PAGAMENTO ==================
 
-// Solicitar upgrade (criar pagamento pendente)
+// Solicitar upgrade (criar pagamento com QR Code PIX)
 app.post('/api/payments/request', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const user = req.user;
     const { plan } = req.body;
     
     // Definir preços
@@ -167,21 +169,125 @@ app.post('/api/payments/request', requireAuth, async (req, res) => {
       enterprise: 99.90
     };
     
+    const planNames = {
+      basico: 'Plano Básico',
+      premium: 'Plano Premium',
+      enterprise: 'Plano Enterprise'
+    };
+    
     if (!prices[plan]) {
       return res.status(400).json({ error: 'Plano inválido' });
     }
     
-    // Criar pagamento pendente
-    const paymentId = await db.createPayment(userId, plan, prices[plan]);
+    const amount = prices[plan];
+    
+    // Criar pagamento pendente no banco
+    const paymentId = await db.createPayment(userId, plan, amount);
+    
+    console.log(`💳 Criando QR Code PIX para pagamento #${paymentId}`);
+    console.log(`   Plano: ${plan}`);
+    console.log(`   Valor: R$ ${amount}`);
+    
+    // Criar QR Code PIX no AbacatePay
+    const pixResult = await abacatepayService.createPixCharge({
+      amount: Math.round(amount * 100), // Converter para centavos
+      description: `${planNames[plan]} - Agente Financeiro`,
+      paymentId: paymentId.toString(),
+      customerName: user.name || user.email,
+      customerEmail: user.email,
+      customerCellphone: user.phone || '',
+      customerTaxId: user.taxId || '',
+      returnUrl: `${process.env.APP_URL || 'http://localhost:3001'}/dashboard`,
+      completionUrl: `${process.env.APP_URL || 'http://localhost:3001'}/payment/success`
+    });
+    
+    if (!pixResult.success) {
+      console.error('❌ Erro ao criar QR Code PIX:', pixResult.error);
+      return res.status(500).json({
+        success: false,
+        error: 'Erro ao gerar QR Code PIX. Tente novamente.'
+      });
+    }
+    
+    console.log('✅ QR Code PIX criado com sucesso!');
+    console.log('   Billing ID:', pixResult.billingId);
+    
+    // Atualizar pagamento com billing_id do AbacatePay
+    await db.getSupabaseClient()
+      .from('payments')
+      .update({ 
+        transaction_id: pixResult.billingId,
+        metadata: JSON.stringify(pixResult)
+      })
+      .eq('id', paymentId);
     
     res.json({
       success: true,
       payment_id: paymentId,
+      billing_id: pixResult.billingId,
       plan: plan,
-      amount: prices[plan],
-      message: 'Pagamento criado. Faça o PIX e aguarde aprovação.'
+      amount: amount,
+      qr_code: pixResult.qrCode,
+      pix_copia_cola: pixResult.pixCopiaECola,
+      payment_url: pixResult.url,
+      expires_at: pixResult.expiresAt,
+      message: 'QR Code PIX gerado com sucesso!'
     });
+    
   } catch (error) {
+    console.error('❌ Erro ao processar pagamento:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Verificar status de um pagamento
+app.get('/api/payments/:id/status', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    
+    // Buscar pagamento no banco
+    const payment = await db.getPaymentById(id);
+    
+    if (!payment || payment.user_id !== userId) {
+      return res.status(404).json({ error: 'Pagamento não encontrado' });
+    }
+    
+    // Se já foi pago, retornar status
+    if (payment.status === 'approved') {
+      return res.json({
+        status: 'paid',
+        paid_at: payment.approved_at
+      });
+    }
+    
+    // Verificar status no AbacatePay
+    if (payment.transaction_id) {
+      const statusResult = await abacatepayService.getChargeStatus(payment.transaction_id);
+      
+      if (statusResult.success && statusResult.status === 'PAID') {
+        // Atualizar no banco
+        await db.approvePayment(id, 1, payment.transaction_id); // Admin ID = 1 (sistema)
+        await db.updateUserPlan(userId, payment.plan);
+        
+        return res.json({
+          status: 'paid',
+          paid_at: statusResult.paidAt
+        });
+      }
+      
+      return res.json({
+        status: statusResult.status?.toLowerCase() || 'pending',
+        expires_at: statusResult.expiresAt
+      });
+    }
+    
+    res.json({
+      status: 'pending'
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao verificar status:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -193,6 +299,68 @@ app.get('/api/payments/my', requireAuth, async (req, res) => {
     const payments = await db.getPaymentsByUser(userId);
     res.json(payments);
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Webhook do AbacatePay (confirmação de pagamento)
+app.post('/api/webhooks/abacatepay', async (req, res) => {
+  try {
+    console.log('📥 Webhook recebido do AbacatePay');
+    
+    const signature = req.headers['x-signature'] || req.headers['x-abacatepay-signature'];
+    const webhookData = req.body;
+    
+    // Validar assinatura do webhook
+    if (!abacatepayService.validateWebhook(webhookData, signature)) {
+      console.error('❌ Assinatura do webhook inválida');
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+    
+    // Processar webhook
+    const result = await abacatepayService.processWebhook(webhookData);
+    
+    if (result.success && result.event === 'paid') {
+      console.log('💰 Pagamento confirmado via webhook!');
+      console.log('   Payment ID:', result.paymentId);
+      
+      // Buscar pagamento no banco
+      const payment = await db.getPaymentById(result.paymentId);
+      
+      if (payment && payment.status === 'pending') {
+        // Aprovar pagamento
+        await db.approvePayment(result.paymentId, 1, result.billingId); // Admin ID = 1 (sistema)
+        
+        // Atualizar plano do usuário
+        await db.updateUserPlan(payment.user_id, payment.plan);
+        
+        // Criar assinatura (30 dias)
+        const expiresAt = moment().add(30, 'days').toISOString();
+        await db.createSubscription(payment.user_id, payment.plan, expiresAt);
+        
+        console.log('✅ Plano atualizado automaticamente!');
+        console.log('   User ID:', payment.user_id);
+        console.log('   Plano:', payment.plan);
+        
+        // Notificar usuário via WebSocket
+        if (global.notifyClients) {
+          global.notifyClients({
+            type: 'payment_confirmed',
+            data: {
+              userId: payment.user_id,
+              plan: payment.plan,
+              amount: result.amount
+            }
+          });
+        }
+      }
+    }
+    
+    // Retornar 200 para o AbacatePay
+    res.json({ received: true });
+    
+  } catch (error) {
+    console.error('❌ Erro ao processar webhook:', error);
     res.status(500).json({ error: error.message });
   }
 });
