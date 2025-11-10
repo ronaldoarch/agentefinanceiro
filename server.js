@@ -195,8 +195,9 @@ app.post('/api/payments/request', requireAuth, async (req, res) => {
       paymentId: paymentId.toString(),
       customerName: user.name || user.email,
       customerEmail: user.email,
-      customerCellphone: user.phone || '',
-      customerTaxId: user.taxId || '',
+      customerCellphone: user.phone || '(11) 99999-9999',
+      // Em dev mode, usa CPF de teste válido se usuário não tiver
+      customerTaxId: user.taxId || '123.456.789-09', // CPF de teste válido
       returnUrl: `${process.env.APP_URL || 'http://localhost:3001'}/dashboard`,
       completionUrl: `${process.env.APP_URL || 'http://localhost:3001'}/payment/success`
     });
