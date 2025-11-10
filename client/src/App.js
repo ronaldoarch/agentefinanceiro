@@ -103,7 +103,15 @@ function MainApp() {
       const data = JSON.parse(event.data);
       console.log('WebSocket mensagem:', data);
       
+      // Recarregar dados quando houver qualquer atualização
       if (data.type === 'nova_transacao') {
+        console.log('✅ Nova transação detectada, recarregando dados...');
+        carregarDados();
+      } else if (data.type === 'transacao_deletada') {
+        console.log('🗑️ Transação deletada, recarregando dados...');
+        carregarDados();
+      } else if (data.type === 'transacoes_limpas') {
+        console.log('🧹 Transações limpas, recarregando dados...');
         carregarDados();
       }
     };
