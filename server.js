@@ -696,27 +696,35 @@ app.post('/api/chat', requireAuth, async (req, res) => {
     
     try {
       console.log('🔍 Detectando se é uma transação...');
+      console.log('🔍 Mensagem recebida:', message);
       transacoesDetectadas = await openaiService.detectarTransacao(message);
-      console.log('🔍 Resultado da detecção:', transacoesDetectadas);
+      console.log('🔍 Resultado da detecção (tipo):', typeof transacoesDetectadas);
+      console.log('🔍 Resultado da detecção (valor):', JSON.stringify(transacoesDetectadas, null, 2));
       
       if (transacoesDetectadas && transacoesDetectadas.length > 0) {
         console.log(`💰 ${transacoesDetectadas.length} TRANSAÇÃO(ÕES) DETECTADA(S)!`);
         
         // Salvar TODAS as transações no banco
-        for (const transacao of transacoesDetectadas) {
-          console.log('💰 Salvando:', transacao);
+        for (let i = 0; i < transacoesDetectadas.length; i++) {
+          const transacao = transacoesDetectadas[i];
+          console.log(`💰 [${i+1}/${transacoesDetectadas.length}] Salvando:`, JSON.stringify(transacao));
           
-          const transacaoId = await db.addTransacao(
-            userId, // IMPORTANTE: user_id do usuário autenticado
-            transacao.tipo,
-            transacao.valor,
-            transacao.categoria,
-            transacao.descricao,
-            `Chat IA: ${message}`
-          );
-          
-          console.log('✅ TRANSAÇÃO SALVA NO BANCO! ID:', transacaoId);
-          transacoesSalvas.push({ id: transacaoId, ...transacao });
+          try {
+            const transacaoId = await db.addTransacao(
+              userId, // IMPORTANTE: user_id do usuário autenticado
+              transacao.tipo,
+              transacao.valor,
+              transacao.categoria,
+              transacao.descricao,
+              `Chat IA: ${message}`
+            );
+            
+            console.log(`✅ TRANSAÇÃO SALVA NO BANCO! ID: ${transacaoId}`);
+            transacoesSalvas.push({ id: transacaoId, ...transacao });
+          } catch (saveError) {
+            console.error(`❌ ERRO ao salvar transação ${i+1}:`, saveError.message);
+            console.error('Stack:', saveError.stack);
+          }
           
           // Notificar clientes via WebSocket
           if (global.notifyClients) {
