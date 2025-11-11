@@ -6,8 +6,9 @@ import './PaymentSuccess.css';
 function PaymentSuccess() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [countdown, setCountdown] = useState(5);
+  const [planUpdated, setPlanUpdated] = useState(false);
 
   // Obter informações do plano da URL ou localStorage
   const plan = searchParams.get('plan') || localStorage.getItem('payment_plan') || user?.plan || 'premium';
@@ -54,6 +55,18 @@ function PaymentSuccess() {
   const currentPlan = plans[plan] || plans.premium;
 
   useEffect(() => {
+    // Recarregar dados do usuário para atualizar o plano
+    const updateUserData = async () => {
+      console.log('🔄 Página de sucesso: Recarregando dados do usuário...');
+      const updatedUser = await refreshUser();
+      if (updatedUser) {
+        console.log('✅ Usuário atualizado! Plano atual:', updatedUser.plan);
+        setPlanUpdated(true);
+      }
+    };
+    
+    updateUserData();
+    
     // Limpar localStorage
     localStorage.removeItem('payment_plan');
     localStorage.removeItem('payment_amount');
@@ -71,7 +84,7 @@ function PaymentSuccess() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [navigate]);
+  }, [navigate, refreshUser]);
 
   return (
     <div className="payment-success-container">
@@ -83,7 +96,13 @@ function PaymentSuccess() {
         </div>
 
         <h1 className="success-title">🎉 Pagamento Confirmado!</h1>
-        <p className="success-subtitle">Seu plano foi ativado com sucesso</p>
+        <p className="success-subtitle">
+          {planUpdated ? (
+            <>✅ Seu plano foi ativado e atualizado com sucesso!</>
+          ) : (
+            <>🔄 Atualizando seu plano...</>
+          )}
+        </p>
 
         <div className="plan-activated" style={{ borderColor: currentPlan.color }}>
           <div className="plan-badge" style={{ background: currentPlan.color }}>

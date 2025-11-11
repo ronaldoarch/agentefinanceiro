@@ -103,6 +103,18 @@ export function AuthProvider({ children }) {
     delete axios.defaults.headers.common['Authorization'];
   }
 
+  // Função para recarregar dados do usuário
+  async function refreshUser() {
+    try {
+      const response = await axios.get('/api/auth/me');
+      setUser(response.data.user);
+      return response.data.user;
+    } catch (error) {
+      console.error('Erro ao recarregar usuário:', error);
+      return null;
+    }
+  }
+
   const value = {
     user,
     token,
@@ -111,7 +123,8 @@ export function AuthProvider({ children }) {
     isAdmin: user?.role === 'admin',
     login,
     register,
-    logout
+    logout,
+    refreshUser
   };
 
   return (

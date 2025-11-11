@@ -54,6 +54,7 @@ function AdminRoute({ children }) {
 }
 
 function MainApp() {
+  const { refreshUser } = useAuth();
   const [resumo, setResumo] = useState(null);
   const [transacoes, setTransacoes] = useState([]);
   const [alertas, setAlertas] = useState([]);
@@ -83,7 +84,13 @@ function MainApp() {
   }, []);
 
   useEffect(() => {
-    carregarDados();
+    // Recarregar usuário e dados ao montar o componente
+    const initializeData = async () => {
+      await refreshUser(); // Atualizar dados do usuário primeiro
+      await carregarDados(); // Depois carregar dados financeiros
+    };
+    
+    initializeData();
 
     // Atualizar dados a cada 30 segundos
     const interval = setInterval(carregarDados, 30000);
@@ -125,7 +132,7 @@ function MainApp() {
       clearInterval(interval);
       ws.close();
     };
-  }, [carregarDados]);
+  }, [carregarDados, refreshUser]);
 
   const marcarAlertaLido = async (id) => {
     try {
