@@ -138,6 +138,26 @@ function Upgrade({ onClose }) {
     }
   }
 
+  // FUNÇÃO DE TESTE: Mudar plano diretamente (sem pagamento)
+  async function handleQuickChangePlan(planKey) {
+    if (window.confirm(`🧪 MODO TESTE\n\nDeseja ativar o plano ${plans[planKey].name} instantaneamente?\n\nEsta é uma função de teste que não requer pagamento.`)) {
+      try {
+        setLoading(true);
+        const response = await axios.post('/api/test/change-plan', { plan: planKey });
+        
+        if (response.data.success) {
+          alert(`🎉 TESTE CONCLUÍDO!\n\n${response.data.message}\n\nRecarregando página para ver as mudanças...`);
+          window.location.reload();
+        }
+      } catch (error) {
+        console.error('Erro ao mudar plano:', error);
+        alert('❌ Erro ao mudar plano: ' + (error.response?.data?.error || error.message));
+      } finally {
+        setLoading(false);
+      }
+    }
+  }
+
   if (showQRCode) {
     return ReactDOM.createPortal(
       <div className="upgrade-modal">
@@ -268,15 +288,42 @@ function Upgrade({ onClose }) {
 
                 <div className="plan-footer">
                   {!isCurrentPlan ? (
-                    <button 
-                      className={`select-btn ${selectedPlan === planKey ? 'selected' : ''}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedPlan(planKey);
-                      }}
-                    >
-                      {selectedPlan === planKey ? '✓ Selecionado' : 'Selecionar'}
-                    </button>
+                    <>
+                      <button 
+                        className={`select-btn ${selectedPlan === planKey ? 'selected' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedPlan(planKey);
+                        }}
+                      >
+                        {selectedPlan === planKey ? '✓ Selecionado' : 'Selecionar'}
+                      </button>
+                      {process.env.NODE_ENV !== 'production' && (
+                        <button 
+                          className="test-quick-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleQuickChangePlan(planKey);
+                          }}
+                          disabled={loading}
+                          style={{
+                            marginTop: '10px',
+                            width: '100%',
+                            padding: '10px',
+                            background: 'linear-gradient(135deg, #ff9800 0%, #ff5722 100%)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
+                            cursor: loading ? 'not-allowed' : 'pointer',
+                            opacity: loading ? 0.6 : 1
+                          }}
+                        >
+                          {loading ? '⏳...' : '🧪 TESTE RÁPIDO'}
+                        </button>
+                      )}
+                    </>
                   ) : (
                     <div className="current-plan-label">Plano Atual</div>
                   )}

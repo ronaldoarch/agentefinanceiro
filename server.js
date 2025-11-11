@@ -335,6 +335,51 @@ app.get('/api/payments/my', requireAuth, async (req, res) => {
   }
 });
 
+// ENDPOINT DE TESTE: Mudar plano diretamente (apenas em desenvolvimento)
+app.post('/api/test/change-plan', requireAuth, async (req, res) => {
+  try {
+    const { plan } = req.body;
+    const userId = req.user.id;
+    
+    // Apenas permitir em desenvolvimento
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    
+    if (!isDevelopment) {
+      return res.status(403).json({ 
+        error: 'Endpoint de teste disponível apenas em desenvolvimento' 
+      });
+    }
+    
+    // Validar plano
+    const validPlans = ['basico', 'premium', 'enterprise'];
+    if (!validPlans.includes(plan)) {
+      return res.status(400).json({ error: 'Plano inválido' });
+    }
+    
+    console.log(`🧪 TESTE: Mudando plano do usuário ${userId} para: ${plan}`);
+    
+    // Atualizar plano do usuário
+    await db.updateUserPlan(userId, plan);
+    
+    // Criar/atualizar assinatura de teste (30 dias)
+    const expiresAt = moment().add(30, 'days').toISOString();
+    await db.createSubscription(userId, plan, expiresAt);
+    
+    console.log(`✅ TESTE: Plano alterado com sucesso para: ${plan}`);
+    
+    res.json({
+      success: true,
+      message: `✅ Plano alterado para ${plan.toUpperCase()} com sucesso!`,
+      plan: plan,
+      test_mode: true
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao mudar plano:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ENDPOINT DE TESTE: Simular pagamento aprovado (apenas em desenvolvimento)
 app.post('/api/payments/:id/simulate-payment', requireAuth, async (req, res) => {
   try {
