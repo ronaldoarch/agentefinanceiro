@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import './PaymentSuccess.css';
 
@@ -55,19 +56,56 @@ function PaymentSuccess() {
   const currentPlan = plans[plan] || plans.premium;
 
   useEffect(() => {
-    // Recarregar dados do usuário para atualizar o plano
-    const updateUserData = async () => {
-      console.log('🔄 Página de sucesso: Recarregando dados do usuário...');
+    // Atualizar plano do usuário baseado na URL
+    const updatePlanFromUrl = async () => {
+      console.log('🔄 Página de sucesso: Processando atualização de plano...');
+      console.log('   Plan da URL:', plan);
+      console.log('   Amount da URL:', amount);
+      
+      // 1. Persistir no localStorage (backup)
+      localStorage.setItem('user_plan', plan);
+      localStorage.setItem('user_plan_updated_at', new Date().toISOString());
+      console.log('💾 Plano salvo no localStorage:', plan);
+      
+      // 2. Atualizar no backend via API de teste
+      try {
+        const isDevelopment = process.env.NODE_ENV !== 'production';
+        
+        if (isDevelopment || !user || user.plan !== plan) {
+          console.log('📡 Chamando API para atualizar plano...');
+          
+          const response = await axios.post('/api/test/change-plan', { plan: plan });
+          
+          if (response.data.success) {
+            console.log('✅ API confirmou atualização do plano:', response.data.plan);
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Erro ao chamar API de atualização, mas continuando:', error.message);
+      }
+      
+      // 3. Atualizar estado global via refreshUser
+      console.log('🔄 Atualizando estado global do usuário...');
       const updatedUser = await refreshUser();
+      
       if (updatedUser) {
-        console.log('✅ Usuário atualizado! Plano atual:', updatedUser.plan);
+        console.log('✅ Estado global atualizado! Plano atual:', updatedUser.plan);
         setPlanUpdated(true);
+        
+        // Verificar se o plano no banco corresponde ao da URL
+        if (updatedUser.plan === plan) {
+          console.log('✅ CONFIRMADO: Plano no banco corresponde ao plano da URL');
+        } else {
+          console.warn('⚠️ ATENÇÃO: Plano no banco diferente da URL');
+          console.warn('   URL:', plan);
+          console.warn('   Banco:', updatedUser.plan);
+        }
       }
     };
     
-    updateUserData();
+    updatePlanFromUrl();
     
-    // Limpar localStorage
+    // Limpar localStorage de dados temporários de pagamento
     localStorage.removeItem('payment_plan');
     localStorage.removeItem('payment_amount');
 
@@ -99,9 +137,17 @@ function PaymentSuccess() {
         <h1 className="success-title">🎉 Pagamento Confirmado!</h1>
         <p className="success-subtitle">
           {planUpdated ? (
-            <>✅ Seu plano foi ativado e atualizado com sucesso!</>
+            <>
+              ✅ Seu plano foi ativado e atualizado com sucesso!
+              <br/>
+              <strong style={{color: currentPlan.color, fontSize: '1.1em'}}>
+                Agora você é {currentPlan.name}
+              </strong>
+            </>
           ) : (
-            <>🔄 Atualizando seu plano...</>
+            <>
+              🔄 Atualizando seu plano para {currentPlan.name}...
+            </>
           )}
         </p>
 

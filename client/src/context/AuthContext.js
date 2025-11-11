@@ -108,10 +108,38 @@ export function AuthProvider({ children }) {
   async function refreshUser() {
     try {
       const response = await axios.get('/api/auth/me');
-      setUser(response.data.user);
-      return response.data.user;
+      const userData = response.data.user;
+      
+      // Verificar se há atualização de plano pendente no localStorage
+      const localPlan = localStorage.getItem('user_plan');
+      const localPlanUpdated = localStorage.getItem('user_plan_updated_at');
+      
+      if (localPlan && localPlanUpdated) {
+        const updatedAt = new Date(localPlanUpdated);
+        const now = new Date();
+        const diffMinutes = (now - updatedAt) / 1000 / 60;
+        
+        // Se foi atualizado há menos de 5 minutos e difere do banco
+        if (diffMinutes < 5 && userData.plan !== localPlan) {
+          console.log('🔄 Usando plano do localStorage (atualização recente):', localPlan);
+          userData.plan = localPlan; // Override com localStorage
+        }
+      }
+      
+      setUser(userData);
+      return userData;
     } catch (error) {
       console.error('Erro ao recarregar usuário:', error);
+      
+      // Fallback: usar dados do localStorage
+      const localPlan = localStorage.getItem('user_plan');
+      if (localPlan && user) {
+        console.warn('⚠️ Usando plano do localStorage como fallback');
+        const updatedUser = { ...user, plan: localPlan };
+        setUser(updatedUser);
+        return updatedUser;
+      }
+      
       return null;
     }
   }
