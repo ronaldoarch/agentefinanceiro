@@ -13,7 +13,6 @@ function PaymentSuccess() {
 
   // Obter informações do plano da URL ou localStorage
   const plan = searchParams.get('plan') || localStorage.getItem('payment_plan') || user?.plan || 'premium';
-  const amount = searchParams.get('amount') || localStorage.getItem('payment_amount') || '39.90';
 
   const plans = {
     basico: {
@@ -60,7 +59,6 @@ function PaymentSuccess() {
     const updatePlanFromUrl = async () => {
       console.log('🔄 Página de sucesso: Processando atualização de plano...');
       console.log('   Plan da URL:', plan);
-      console.log('   Amount da URL:', amount);
       
       // 1. Persistir no localStorage (backup)
       localStorage.setItem('user_plan', plan);

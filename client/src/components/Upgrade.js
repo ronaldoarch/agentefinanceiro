@@ -211,10 +211,22 @@ function Upgrade({ onClose, onPlanChanged }) {
                 </ol>
                 
                 <p className="help-text">
-                  💡 Se a aba não abriu, <a href="#" onClick={(e) => {
-                    e.preventDefault();
-                    alert('Por favor, permita pop-ups do site nas configurações do navegador.');
-                  }}>clique aqui</a> para ver instruções.
+                  💡 Se a aba não abriu, <button 
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      alert('Por favor, permita pop-ups do site nas configurações do navegador.');
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#667eea',
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                      padding: 0,
+                      font: 'inherit'
+                    }}
+                  >clique aqui</button> para ver instruções.
                 </p>
               </div>
 

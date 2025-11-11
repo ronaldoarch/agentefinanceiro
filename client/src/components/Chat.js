@@ -9,7 +9,6 @@ function Chat() {
   const [isRecording, setIsRecording] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
-  const [audioChunks, setAudioChunks] = useState([]);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -107,7 +106,6 @@ function Chat() {
       };
 
       setMediaRecorder(recorder);
-      setAudioChunks(chunks);
       recorder.start();
       setIsRecording(true);
     } catch (error) {
