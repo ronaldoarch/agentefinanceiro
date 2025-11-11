@@ -37,10 +37,19 @@ EXPOSE 3005
 ENV PORT=3005
 ENV NODE_ENV=production
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3005/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+# Copiar scripts de verificação
+COPY docker-healthcheck.sh /app/
+RUN chmod +x /app/docker-healthcheck.sh
 
-# Comando para iniciar
-CMD ["npm", "start"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3005/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" || exit 1
+
+# Labels para melhor organização
+LABEL maintainer="agente-financeiro"
+LABEL version="1.0"
+LABEL description="Agente Financeiro com WhatsApp e OpenAI"
+
+# Comando para iniciar com verificação
+CMD ["sh", "-c", "echo '🚀 Iniciando Agente Financeiro...' && npm start"]
 
