@@ -11,6 +11,7 @@ import Header from './components/Header';
 import WhatsAppControl from './components/WhatsAppControl';
 import Chat from './components/Chat';
 import AdminDashboard from './components/admin/AdminDashboard';
+import PaymentSuccess from './components/PaymentSuccess';
 
 // Componente para proteger rotas
 function PrivateRoute({ children }) {
@@ -214,6 +215,15 @@ function App() {
           <AdminRoute>
             <AdminDashboard />
           </AdminRoute>
+        } 
+      />
+      
+      <Route 
+        path="/payment/success" 
+        element={
+          <PrivateRoute>
+            <PaymentSuccess />
+          </PrivateRoute>
         } 
       />
       

@@ -51,6 +51,10 @@ function Upgrade({ onClose }) {
     setLoading(true);
     
     try {
+      // Salvar informações do plano no localStorage para página de sucesso
+      localStorage.setItem('payment_plan', selectedPlan);
+      localStorage.setItem('payment_amount', plans[selectedPlan].price.toFixed(2));
+      
       const response = await axios.post('/api/payments/request', {
         plan: selectedPlan
       });
@@ -102,8 +106,8 @@ function Upgrade({ onClose }) {
         
         if (response.data.status === 'paid') {
           clearInterval(interval);
-          alert('🎉 PAGAMENTO CONFIRMADO!\n\nSeu plano foi atualizado com sucesso!\n\nRecarregando página...');
-          window.location.reload();
+          // Redirecionar para página de sucesso
+          window.location.href = '/payment/success?plan=' + response.data.plan;
         }
         
         // Parar após número máximo de tentativas
@@ -127,8 +131,8 @@ function Upgrade({ onClose }) {
       const response = await axios.post(`/api/payments/${paymentId}/simulate-payment`);
       
       if (response.data.success) {
-        alert('🎉 PAGAMENTO SIMULADO APROVADO!\n\n' + response.data.message + '\n\nSeu plano foi atualizado para: ' + response.data.plan.toUpperCase() + '\n\nRecarregando página...');
-        window.location.reload();
+        // Redirecionar para página de sucesso
+        window.location.href = '/payment/success?plan=' + response.data.plan;
       }
     } catch (error) {
       console.error('Erro ao simular pagamento:', error);
@@ -146,8 +150,8 @@ function Upgrade({ onClose }) {
         const response = await axios.post('/api/test/change-plan', { plan: planKey });
         
         if (response.data.success) {
-          alert(`🎉 TESTE CONCLUÍDO!\n\n${response.data.message}\n\nRecarregando página para ver as mudanças...`);
-          window.location.reload();
+          // Redirecionar para página de sucesso
+          window.location.href = '/payment/success?plan=' + planKey;
         }
       } catch (error) {
         console.error('Erro ao mudar plano:', error);
