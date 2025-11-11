@@ -95,7 +95,15 @@ function Header({ whatsappStatus, activeTab, setActiveTab }) {
         </div>
       </div>
 
-      {showUpgrade && <Upgrade onClose={() => setShowUpgrade(false)} />}
+      {showUpgrade && (
+        <Upgrade 
+          onClose={() => setShowUpgrade(false)} 
+          onPlanChanged={(newPlan) => {
+            console.log('✅ Plano alterado para:', newPlan);
+            setShowUpgrade(false);
+          }} 
+        />
+      )}
     </header>
   );
 }

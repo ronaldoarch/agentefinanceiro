@@ -4,12 +4,12 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import './Upgrade.css';
 
-function Upgrade({ onClose }) {
+function Upgrade({ onClose, onPlanChanged }) {
   const [selectedPlan, setSelectedPlan] = useState('premium');
   const [showQRCode, setShowQRCode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [paymentId, setPaymentId] = useState(null);
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
 
   const plans = {
     basico: {
@@ -150,8 +150,22 @@ function Upgrade({ onClose }) {
         const response = await axios.post('/api/test/change-plan', { plan: planKey });
         
         if (response.data.success) {
-          // Redirecionar para página de sucesso
-          window.location.href = '/payment/success?plan=' + planKey;
+          // Atualizar contexto do usuário imediatamente
+          await refreshUser();
+          
+          // Mostrar confirmação
+          alert(`✅ Plano atualizado com sucesso!\n\n${plans[planKey].name} está ativo agora!\n\nO site será atualizado para refletir as mudanças.`);
+          
+          // Fechar modal
+          onClose();
+          
+          // Notificar componente pai que plano mudou
+          if (onPlanChanged) {
+            onPlanChanged(planKey);
+          }
+          
+          // Forçar atualização completa da página
+          window.location.reload();
         }
       } catch (error) {
         console.error('Erro ao mudar plano:', error);
@@ -321,10 +335,12 @@ function Upgrade({ onClose }) {
                             fontSize: '0.85rem',
                             fontWeight: '600',
                             cursor: loading ? 'not-allowed' : 'pointer',
-                            opacity: loading ? 0.6 : 1
+                            opacity: loading ? 0.6 : 1,
+                            transition: 'all 0.3s'
                           }}
+                          title="Ativar este plano instantaneamente para testes"
                         >
-                          {loading ? '⏳...' : '🧪 TESTE RÁPIDO'}
+                          {loading ? '⏳...' : '🧪 ATIVAR AGORA'}
                         </button>
                       )}
                     </>
