@@ -5,8 +5,8 @@ data
 *.log
 .DS_Store
 client/node_modules
-client/build
 database.sqlite
 *.sqlite
 .env
+# NÃO ignorar client/build - é necessário em produção!
 
