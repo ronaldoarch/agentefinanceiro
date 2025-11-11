@@ -205,6 +205,9 @@ app.post('/api/payments/request', requireAuth, async (req, res) => {
       console.log('⚠️ MODO DE DESENVOLVIMENTO: Usando CPF de teste');
     }
 
+    // Determinar URL base (produção ou desenvolvimento)
+    const baseUrl = process.env.APP_URL || 'http://localhost:3001';
+    
     // Criar QR Code PIX no AbacatePay
     const pixResult = await abacatepayService.createPixCharge({
       amount: Math.round(amount * 100), // Converter para centavos
@@ -214,8 +217,8 @@ app.post('/api/payments/request', requireAuth, async (req, res) => {
       customerEmail: user.email || 'teste@exemplo.com',
       customerCellphone: user.phone || '(11) 99999-9999',
       customerTaxId: taxId,
-      returnUrl: `${process.env.APP_URL || 'http://localhost:3001'}/dashboard`,
-      completionUrl: `${process.env.APP_URL || 'http://localhost:3001'}/payment/success`
+      returnUrl: `${baseUrl}/`,
+      completionUrl: `${baseUrl}/payment/success?plan=${plan}&amount=${amount}`
     });
     
     if (!pixResult.success) {
