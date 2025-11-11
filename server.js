@@ -282,13 +282,29 @@ app.get('/api/payments/:id/status', requireAuth, async (req, res) => {
       const statusResult = await abacatepayService.getChargeStatus(payment.transaction_id);
       
       if (statusResult.success && statusResult.status === 'PAID') {
+        // Identificar plano pelo valor pago
+        let planToActivate = payment.plan;
+        const planByAmount = getPlanByAmount(payment.amount);
+        
+        if (planByAmount && planByAmount !== payment.plan) {
+          console.log(`⚠️ Plano ajustado pelo valor: ${payment.plan} → ${planByAmount}`);
+          planToActivate = planByAmount;
+        }
+        
+        console.log(`✅ Confirmando pagamento - Plano: ${planToActivate} (Valor: R$ ${payment.amount})`);
+        
         // Atualizar no banco
         await db.approvePayment(id, 1, payment.transaction_id); // Admin ID = 1 (sistema)
-        await db.updateUserPlan(userId, payment.plan);
+        await db.updateUserPlan(userId, planToActivate);
+        
+        // Criar assinatura (30 dias)
+        const expiresAt = moment().add(30, 'days').toISOString();
+        await db.createSubscription(userId, planToActivate, expiresAt);
         
         return res.json({
           status: 'paid',
-          paid_at: statusResult.paidAt
+          paid_at: statusResult.paidAt,
+          plan: planToActivate
         });
       }
       
@@ -351,23 +367,40 @@ app.post('/api/payments/:id/simulate-payment', requireAuth, async (req, res) => 
       return res.json({ 
         success: true,
         message: 'Pagamento já estava aprovado',
-        status: 'paid' 
+        status: 'paid',
+        plan: payment.plan
       });
     }
+    
+    // Identificar plano pelo valor pago
+    let planToActivate = payment.plan;
+    const planByAmount = getPlanByAmount(payment.amount);
+    
+    if (planByAmount && planByAmount !== payment.plan) {
+      console.log(`⚠️ SIMULAÇÃO: Plano ajustado pelo valor: ${payment.plan} → ${planByAmount}`);
+      planToActivate = planByAmount;
+    }
+    
+    console.log(`🧪 SIMULAÇÃO: Ativando plano ${planToActivate} (Valor: R$ ${payment.amount})`);
     
     // Aprovar pagamento
     await db.approvePayment(id, userId, 'SIMULATED_' + Date.now());
     
-    // Atualizar plano do usuário
-    await db.updateUserPlan(userId, payment.plan);
+    // Atualizar plano do usuário com o plano correto baseado no valor
+    await db.updateUserPlan(userId, planToActivate);
     
-    console.log(`✅ SIMULAÇÃO: Plano do usuário ${userId} atualizado para: ${payment.plan}`);
+    // Criar assinatura (30 dias)
+    const expiresAt = moment().add(30, 'days').toISOString();
+    await db.createSubscription(userId, planToActivate, expiresAt);
+    
+    console.log(`✅ SIMULAÇÃO: Plano do usuário ${userId} atualizado para: ${planToActivate}`);
     
     res.json({
       success: true,
-      message: '✅ Pagamento SIMULADO aprovado com sucesso!',
+      message: `✅ Pagamento SIMULADO aprovado com sucesso! Plano ${planToActivate.toUpperCase()} ativado!`,
       status: 'paid',
-      plan: payment.plan,
+      plan: planToActivate,
+      amount: payment.amount,
       simulated: true
     });
     
@@ -376,6 +409,29 @@ app.post('/api/payments/:id/simulate-payment', requireAuth, async (req, res) => 
     res.status(500).json({ error: error.message });
   }
 });
+
+// Função auxiliar: Identificar plano pelo valor pago
+function getPlanByAmount(amount) {
+  const prices = {
+    15.00: 'basico',
+    39.90: 'premium',
+    99.90: 'enterprise'
+  };
+  
+  // Buscar plano exato
+  if (prices[amount]) {
+    return prices[amount];
+  }
+  
+  // Buscar por aproximação (tolerância de R$ 0.50)
+  for (const [price, plan] of Object.entries(prices)) {
+    if (Math.abs(parseFloat(price) - amount) <= 0.50) {
+      return plan;
+    }
+  }
+  
+  return null;
+}
 
 // Webhook do AbacatePay (confirmação de pagamento)
 app.post('/api/webhooks/abacatepay', async (req, res) => {
@@ -397,24 +453,37 @@ app.post('/api/webhooks/abacatepay', async (req, res) => {
     if (result.success && result.event === 'paid') {
       console.log('💰 Pagamento confirmado via webhook!');
       console.log('   Payment ID:', result.paymentId);
+      console.log('   Valor pago:', result.amount);
       
       // Buscar pagamento no banco
       const payment = await db.getPaymentById(result.paymentId);
       
       if (payment && payment.status === 'pending') {
+        // Identificar plano pelo valor pago (segurança adicional)
+        let planToActivate = payment.plan;
+        const planByAmount = getPlanByAmount(payment.amount);
+        
+        if (planByAmount && planByAmount !== payment.plan) {
+          console.log(`⚠️ Plano ajustado pelo valor: ${payment.plan} → ${planByAmount}`);
+          planToActivate = planByAmount;
+        }
+        
+        console.log(`✅ Ativando plano: ${planToActivate} (Valor: R$ ${payment.amount})`);
+        
         // Aprovar pagamento
         await db.approvePayment(result.paymentId, 1, result.billingId); // Admin ID = 1 (sistema)
         
-        // Atualizar plano do usuário
-        await db.updateUserPlan(payment.user_id, payment.plan);
+        // Atualizar plano do usuário com o plano correto baseado no valor
+        await db.updateUserPlan(payment.user_id, planToActivate);
         
         // Criar assinatura (30 dias)
         const expiresAt = moment().add(30, 'days').toISOString();
-        await db.createSubscription(payment.user_id, payment.plan, expiresAt);
+        await db.createSubscription(payment.user_id, planToActivate, expiresAt);
         
         console.log('✅ Plano atualizado automaticamente!');
         console.log('   User ID:', payment.user_id);
-        console.log('   Plano:', payment.plan);
+        console.log('   Plano:', planToActivate);
+        console.log('   Valor pago: R$', payment.amount);
         
         // Notificar usuário via WebSocket
         if (global.notifyClients) {
@@ -422,8 +491,8 @@ app.post('/api/webhooks/abacatepay', async (req, res) => {
             type: 'payment_confirmed',
             data: {
               userId: payment.user_id,
-              plan: payment.plan,
-              amount: result.amount
+              plan: planToActivate,
+              amount: payment.amount
             }
           });
         }
