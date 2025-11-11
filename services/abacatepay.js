@@ -149,9 +149,28 @@ function validateWebhook(payload, signature) {
     // AbacatePay usa HMAC SHA256 para assinar webhooks
     const secret = process.env.ABACATEPAY_WEBHOOK_SECRET;
     
+    // Em modo de desenvolvimento ou se o secret não estiver configurado, aceitar webhook
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    
     if (!secret) {
-      console.warn('⚠️ ABACATEPAY_WEBHOOK_SECRET não configurado');
-      return false;
+      if (isDevelopment) {
+        console.warn('⚠️ ABACATEPAY_WEBHOOK_SECRET não configurado - ACEITANDO em modo DEV');
+        return true; // Aceitar em desenvolvimento
+      } else {
+        console.error('❌ ABACATEPAY_WEBHOOK_SECRET não configurado em PRODUÇÃO');
+        return false;
+      }
+    }
+
+    // Se não tiver signature no header, aceitar em dev
+    if (!signature) {
+      if (isDevelopment) {
+        console.warn('⚠️ Webhook sem assinatura - ACEITANDO em modo DEV');
+        return true;
+      } else {
+        console.error('❌ Webhook sem assinatura em PRODUÇÃO');
+        return false;
+      }
     }
 
     const expectedSignature = crypto
@@ -163,12 +182,27 @@ function validateWebhook(payload, signature) {
     
     if (!isValid) {
       console.error('❌ Assinatura do webhook inválida');
+      console.error('   Expected:', expectedSignature);
+      console.error('   Received:', signature);
+      
+      // Em desenvolvimento, logar mas aceitar mesmo assim
+      if (isDevelopment) {
+        console.warn('⚠️ Assinatura inválida - MAS ACEITANDO em modo DEV');
+        return true;
+      }
     }
 
     return isValid;
 
   } catch (error) {
     console.error('❌ Erro ao validar webhook:', error.message);
+    
+    // Em desenvolvimento, aceitar mesmo com erro
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('⚠️ Erro na validação - MAS ACEITANDO em modo DEV');
+      return true;
+    }
+    
     return false;
   }
 }
