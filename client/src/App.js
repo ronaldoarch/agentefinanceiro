@@ -132,7 +132,8 @@ function MainApp() {
       clearInterval(interval);
       ws.close();
     };
-  }, [carregarDados, refreshUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const marcarAlertaLido = async (id) => {
     try {

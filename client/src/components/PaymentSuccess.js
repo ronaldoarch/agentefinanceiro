@@ -84,7 +84,8 @@ function PaymentSuccess() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [navigate, refreshUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="payment-success-container">
