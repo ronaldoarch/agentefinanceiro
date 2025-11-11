@@ -118,6 +118,26 @@ function Upgrade({ onClose }) {
     }, 3000); // A cada 3 segundos
   }
 
+  // FUNÇÃO DE TESTE: Simular pagamento aprovado
+  async function handleSimulatePayment() {
+    if (!paymentId) return;
+    
+    try {
+      setLoading(true);
+      const response = await axios.post(`/api/payments/${paymentId}/simulate-payment`);
+      
+      if (response.data.success) {
+        alert('🎉 PAGAMENTO SIMULADO APROVADO!\n\n' + response.data.message + '\n\nSeu plano foi atualizado para: ' + response.data.plan.toUpperCase() + '\n\nRecarregando página...');
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Erro ao simular pagamento:', error);
+      alert('❌ Erro ao simular pagamento: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   if (showQRCode) {
     return ReactDOM.createPortal(
       <div className="upgrade-modal">
@@ -176,6 +196,26 @@ function Upgrade({ onClose }) {
               <button className="btn-secondary" onClick={onClose}>
                 Fechar
               </button>
+              {process.env.NODE_ENV !== 'production' && (
+                <button 
+                  className="btn-test" 
+                  onClick={handleSimulatePayment}
+                  disabled={loading}
+                  style={{
+                    background: 'linear-gradient(135deg, #ff9800 0%, #ff5722 100%)',
+                    color: 'white',
+                    padding: '14px 30px',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    opacity: loading ? 0.7 : 1
+                  }}
+                >
+                  {loading ? '⏳ Simulando...' : '🧪 SIMULAR Pagamento (TESTE)'}
+                </button>
+              )}
               <button className="btn-primary" onClick={() => window.location.reload()}>
                 ✓ Já Fiz o Pagamento
               </button>

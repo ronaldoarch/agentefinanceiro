@@ -319,6 +319,64 @@ app.get('/api/payments/my', requireAuth, async (req, res) => {
   }
 });
 
+// ENDPOINT DE TESTE: Simular pagamento aprovado (apenas em desenvolvimento)
+app.post('/api/payments/:id/simulate-payment', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    
+    // Apenas permitir em desenvolvimento
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    
+    if (!isDevelopment) {
+      return res.status(403).json({ 
+        error: 'Endpoint de simulação disponível apenas em desenvolvimento' 
+      });
+    }
+    
+    console.log(`🧪 SIMULANDO pagamento aprovado para Payment ID: ${id}`);
+    
+    // Buscar pagamento no banco
+    const payment = await db.getPaymentById(id);
+    
+    if (!payment) {
+      return res.status(404).json({ error: 'Pagamento não encontrado' });
+    }
+    
+    if (payment.user_id !== userId) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+    
+    if (payment.status === 'approved') {
+      return res.json({ 
+        success: true,
+        message: 'Pagamento já estava aprovado',
+        status: 'paid' 
+      });
+    }
+    
+    // Aprovar pagamento
+    await db.approvePayment(id, userId, 'SIMULATED_' + Date.now());
+    
+    // Atualizar plano do usuário
+    await db.updateUserPlan(userId, payment.plan);
+    
+    console.log(`✅ SIMULAÇÃO: Plano do usuário ${userId} atualizado para: ${payment.plan}`);
+    
+    res.json({
+      success: true,
+      message: '✅ Pagamento SIMULADO aprovado com sucesso!',
+      status: 'paid',
+      plan: payment.plan,
+      simulated: true
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao simular pagamento:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Webhook do AbacatePay (confirmação de pagamento)
 app.post('/api/webhooks/abacatepay', async (req, res) => {
   try {
