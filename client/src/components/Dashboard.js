@@ -9,13 +9,12 @@ moment.locale('pt-br');
 
 function Dashboard({ resumo, transacoes }) {
   const [lembretes, setLembretes] = useState([]);
-  const [mesSelecionado, setMesSelecionado] = useState(moment().format('YYYY-MM'));
   const [loadingLembretes, setLoadingLembretes] = useState(true);
   
   const token = localStorage.getItem('token');
   const apiUrl = process.env.REACT_APP_API_URL || '';
 
-  // Carregar lembretes
+  // Carregar TODOS os lembretes pendentes
   useEffect(() => {
     const carregarLembretes = async () => {
       try {
@@ -76,26 +75,10 @@ function Dashboard({ resumo, transacoes }) {
     });
   }
 
-  // Filtrar lembretes pelo mês selecionado
-  const lembretesFiltrados = lembretes.filter(l => {
-    const dataVencimento = moment(l.data_vencimento);
-    return dataVencimento.format('YYYY-MM') === mesSelecionado;
-  });
-
-  // Calcular total a pagar no mês
-  const totalAPagar = lembretesFiltrados.reduce((total, l) => {
+  // Calcular total a pagar (TODOS os lembretes pendentes)
+  const totalAPagar = lembretes.reduce((total, l) => {
     return total + (l.valor ? parseFloat(l.valor) : 0);
   }, 0);
-
-  // Gerar lista de meses (últimos 3 e próximos 3)
-  const mesesDisponiveis = [];
-  for (let i = -3; i <= 3; i++) {
-    const mes = moment().add(i, 'months');
-    mesesDisponiveis.push({
-      valor: mes.format('YYYY-MM'),
-      label: mes.format('MMMM YYYY')
-    });
-  }
 
   // Função para verificar se lembrete está atrasado
   const isAtrasado = (dataVencimento) => {
@@ -227,37 +210,24 @@ function Dashboard({ resumo, transacoes }) {
 
         {/* Card A Pagar */}
         <div className="card a-pagar-card">
-          <div className="card-header-with-filter">
-            <h3 className="card-title">💸 A Pagar</h3>
-            <select 
-              className="mes-filtro"
-              value={mesSelecionado}
-              onChange={(e) => setMesSelecionado(e.target.value)}
-            >
-              {mesesDisponiveis.map(mes => (
-                <option key={mes.valor} value={mes.valor}>
-                  {mes.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <h3 className="card-title">💸 A Pagar - Todos os Lembretes</h3>
 
-          {/* Total a pagar do mês */}
+          {/* Total a pagar geral */}
           <div className="total-a-pagar">
-            <span className="total-label">Total do Mês:</span>
+            <span className="total-label">Total Pendente:</span>
             <span className="total-valor">R$ {totalAPagar.toFixed(2)}</span>
           </div>
 
-          {/* Lista de lembretes */}
+          {/* Lista de TODOS os lembretes */}
           <div className="lembretes-list">
             {loadingLembretes ? (
               <div className="loading-lembretes">⏳ Carregando...</div>
-            ) : lembretesFiltrados.length === 0 ? (
+            ) : lembretes.length === 0 ? (
               <div className="no-lembretes">
-                <p>✅ Nenhuma conta a pagar em {moment(mesSelecionado).format('MMMM YYYY')}</p>
+                <p>✅ Nenhuma conta a pagar no momento!</p>
               </div>
             ) : (
-              lembretesFiltrados
+              lembretes
                 .sort((a, b) => moment(a.data_vencimento).diff(moment(b.data_vencimento)))
                 .map((lembrete) => {
                   const atrasado = isAtrasado(lembrete.data_vencimento);
