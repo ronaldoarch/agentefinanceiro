@@ -10,6 +10,7 @@ moment.locale('pt-br');
 function Dashboard({ resumo, transacoes }) {
   const [lembretes, setLembretes] = useState([]);
   const [loadingLembretes, setLoadingLembretes] = useState(true);
+  const [diasGrafico, setDiasGrafico] = useState(7); // 7, 15 ou 30
   
   const token = localStorage.getItem('token');
   const apiUrl = process.env.REACT_APP_API_URL || '';
@@ -52,9 +53,9 @@ function Dashboard({ resumo, transacoes }) {
   // Cores para o gráfico
   const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DFE6E9', '#A29BFE', '#FD79A8'];
 
-  // Dados para gráfico de barras (últimos 7 dias)
+  // Dados para gráfico de barras (com filtro de dias)
   const ultimosDias = [];
-  for (let i = 6; i >= 0; i--) {
+  for (let i = diasGrafico - 1; i >= 0; i--) {
     const data = moment().subtract(i, 'days').format('YYYY-MM-DD');
     const transacoesDia = transacoes.filter(t => 
       moment(t.data).format('YYYY-MM-DD') === data
@@ -69,7 +70,7 @@ function Dashboard({ resumo, transacoes }) {
       .reduce((sum, t) => sum + t.valor, 0);
 
     ultimosDias.push({
-      dia: moment(data).format('ddd'),
+      dia: moment(data).format('DD/MM'),
       receitas,
       despesas
     });
@@ -79,6 +80,20 @@ function Dashboard({ resumo, transacoes }) {
   const totalAPagar = lembretes.reduce((total, l) => {
     return total + (l.valor ? parseFloat(l.valor) : 0);
   }, 0);
+
+  // Calcular total a pagar APENAS do mês atual (para descontar do saldo)
+  const mesAtual = moment().format('YYYY-MM');
+  const lembretesDoMes = lembretes.filter(l => {
+    const dataVencimento = moment(l.data_vencimento);
+    return dataVencimento.format('YYYY-MM') === mesAtual;
+  });
+  
+  const totalAPagarMesAtual = lembretesDoMes.reduce((total, l) => {
+    return total + (l.valor ? parseFloat(l.valor) : 0);
+  }, 0);
+
+  // Saldo Real = Saldo - Total a Pagar do Mês Atual
+  const saldoReal = resumo.saldo - totalAPagarMesAtual;
 
   // Função para verificar se lembrete está atrasado
   const isAtrasado = (dataVencimento) => {
@@ -94,7 +109,7 @@ function Dashboard({ resumo, transacoes }) {
   return (
     <div className="dashboard">
       {/* Cards de resumo */}
-      <div className="grid">
+      <div className="grid-4">
         <div className="summary-card receitas">
           <div className="summary-icon">📈</div>
           <div className="summary-content">
@@ -121,13 +136,44 @@ function Dashboard({ resumo, transacoes }) {
             <div className="summary-period">{resumo.mes}</div>
           </div>
         </div>
+
+        <div className={`summary-card saldo-real ${saldoReal >= 0 ? 'positivo' : 'negativo'}`}>
+          <div className="summary-icon">{saldoReal >= 0 ? '💎' : '🚨'}</div>
+          <div className="summary-content">
+            <div className="summary-label">Saldo Real</div>
+            <div className="summary-value">R$ {saldoReal.toFixed(2)}</div>
+            <div className="summary-period">Após contas do mês</div>
+          </div>
+        </div>
       </div>
 
       {/* Gráficos */}
       <div className="charts-grid">
         {/* Gráfico de barras */}
         <div className="card">
-          <h3 className="card-title">📊 Últimos 7 Dias</h3>
+          <div className="card-header-with-filter">
+            <h3 className="card-title">📊 Receitas x Despesas</h3>
+            <div className="dias-filtro">
+              <button 
+                className={`btn-filtro ${diasGrafico === 7 ? 'ativo' : ''}`}
+                onClick={() => setDiasGrafico(7)}
+              >
+                7 dias
+              </button>
+              <button 
+                className={`btn-filtro ${diasGrafico === 15 ? 'ativo' : ''}`}
+                onClick={() => setDiasGrafico(15)}
+              >
+                15 dias
+              </button>
+              <button 
+                className={`btn-filtro ${diasGrafico === 30 ? 'ativo' : ''}`}
+                onClick={() => setDiasGrafico(30)}
+              >
+                30 dias
+              </button>
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={ultimosDias}>
               <CartesianGrid strokeDasharray="3 3" />
