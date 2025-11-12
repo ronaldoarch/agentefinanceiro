@@ -81,20 +81,6 @@ function Dashboard({ resumo, transacoes }) {
     return total + (l.valor ? parseFloat(l.valor) : 0);
   }, 0);
 
-  // Calcular total a pagar APENAS do mês atual (para descontar do saldo)
-  const mesAtual = moment().format('YYYY-MM');
-  const lembretesDoMes = lembretes.filter(l => {
-    const dataVencimento = moment(l.data_vencimento);
-    return dataVencimento.format('YYYY-MM') === mesAtual;
-  });
-  
-  const totalAPagarMesAtual = lembretesDoMes.reduce((total, l) => {
-    return total + (l.valor ? parseFloat(l.valor) : 0);
-  }, 0);
-
-  // Saldo Real = Saldo - Total a Pagar do Mês Atual
-  const saldoReal = resumo.saldo - totalAPagarMesAtual;
-
   // Função para verificar se lembrete está atrasado
   const isAtrasado = (dataVencimento) => {
     return moment(dataVencimento).isBefore(moment());
@@ -109,7 +95,7 @@ function Dashboard({ resumo, transacoes }) {
   return (
     <div className="dashboard">
       {/* Cards de resumo */}
-      <div className="grid-4">
+      <div className="grid">
         <div className="summary-card receitas">
           <div className="summary-icon">📈</div>
           <div className="summary-content">
@@ -134,15 +120,6 @@ function Dashboard({ resumo, transacoes }) {
             <div className="summary-label">Saldo</div>
             <div className="summary-value">R$ {resumo.saldo.toFixed(2)}</div>
             <div className="summary-period">{resumo.mes}</div>
-          </div>
-        </div>
-
-        <div className={`summary-card saldo-real ${saldoReal >= 0 ? 'positivo' : 'negativo'}`}>
-          <div className="summary-icon">{saldoReal >= 0 ? '💎' : '🚨'}</div>
-          <div className="summary-content">
-            <div className="summary-label">Saldo Real</div>
-            <div className="summary-value">R$ {saldoReal.toFixed(2)}</div>
-            <div className="summary-period">Após contas do mês</div>
           </div>
         </div>
       </div>
