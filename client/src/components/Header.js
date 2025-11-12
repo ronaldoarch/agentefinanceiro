@@ -5,7 +5,7 @@ import Upgrade from './Upgrade';
 import './Header.css';
 
 function Header({ whatsappStatus, activeTab, setActiveTab }) {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [showUpgrade, setShowUpgrade] = useState(false);
 
@@ -14,6 +14,16 @@ function Header({ whatsappStatus, activeTab, setActiveTab }) {
       logout();
       navigate('/login');
     }
+  }
+  
+  async function handlePlanChanged(newPlan) {
+    console.log('✅ Header: Plano alterado para:', newPlan);
+    setShowUpgrade(false);
+    
+    // Forçar atualização do usuário no contexto
+    console.log('🔄 Header: Atualizando dados do usuário...');
+    await refreshUser();
+    console.log('✅ Header: Dados atualizados!');
   }
 
   return (
@@ -104,10 +114,7 @@ function Header({ whatsappStatus, activeTab, setActiveTab }) {
       {showUpgrade && (
         <Upgrade 
           onClose={() => setShowUpgrade(false)} 
-          onPlanChanged={(newPlan) => {
-            console.log('✅ Plano alterado para:', newPlan);
-            setShowUpgrade(false);
-          }} 
+          onPlanChanged={handlePlanChanged} 
         />
       )}
     </header>

@@ -147,28 +147,40 @@ function Upgrade({ onClose, onPlanChanged }) {
     if (window.confirm(`🧪 MODO TESTE\n\nDeseja ativar o plano ${plans[planKey].name} instantaneamente?\n\nEsta é uma função de teste que não requer pagamento.`)) {
       try {
         setLoading(true);
+        console.log('🔄 Upgrade: Mudando plano para:', planKey);
+        
         const response = await axios.post('/api/test/change-plan', { plan: planKey });
         
         if (response.data.success) {
+          console.log('✅ Upgrade: API confirmou mudança de plano');
+          
+          // Salvar no localStorage para garantir
+          localStorage.setItem('user_plan', planKey);
+          localStorage.setItem('user_plan_updated_at', new Date().toISOString());
+          console.log('💾 Upgrade: Plano salvo no localStorage');
+          
           // Atualizar contexto do usuário imediatamente
-          await refreshUser();
+          console.log('🔄 Upgrade: Chamando refreshUser...');
+          const updatedUser = await refreshUser();
+          console.log('✅ Upgrade: RefreshUser concluído. Plano atual:', updatedUser?.plan);
           
           // Mostrar confirmação
-          alert(`✅ Plano atualizado com sucesso!\n\n${plans[planKey].name} está ativo agora!\n\nO site será atualizado para refletir as mudanças.`);
+          alert(`✅ Plano atualizado com sucesso!\n\n${plans[planKey].name} está ativo agora!\n\nO painel será atualizado automaticamente.`);
+          
+          // Notificar componente pai que plano mudou (isso vai atualizar o Header)
+          if (onPlanChanged) {
+            console.log('🔔 Upgrade: Notificando componente pai');
+            await onPlanChanged(planKey);
+          }
           
           // Fechar modal
           onClose();
           
-          // Notificar componente pai que plano mudou
-          if (onPlanChanged) {
-            onPlanChanged(planKey);
-          }
-          
-          // Forçar atualização completa da página
-          window.location.reload();
+          // NÃO forçar reload completo - deixar o React atualizar
+          console.log('✅ Upgrade: Processo completo!');
         }
       } catch (error) {
-        console.error('Erro ao mudar plano:', error);
+        console.error('❌ Erro ao mudar plano:', error);
         alert('❌ Erro ao mudar plano: ' + (error.response?.data?.error || error.message));
       } finally {
         setLoading(false);

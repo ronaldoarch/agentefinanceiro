@@ -112,7 +112,9 @@ function PaymentSuccess() {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          navigate('/');
+          // Redirecionar para home (não reload, usar navigate)
+          console.log('🔄 PaymentSuccess: Redirecionando para home...');
+          navigate('/', { replace: true });
           return 0;
         }
         return prev - 1;
@@ -121,7 +123,7 @@ function PaymentSuccess() {
 
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [navigate]);
 
   return (
     <div className="payment-success-container">
