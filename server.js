@@ -1201,33 +1201,48 @@ app.post('/api/chat', requireAuth, async (req, res) => {
       console.error('Stack:', error.stack);
     }
     
-    // Buscar dados reais do usuário para contexto
+    // Buscar dados reais do usuário para contexto (APENAS SE FOR PERGUNTA)
     let contextoDados = '';
+    const mensagemLower = message.toLowerCase();
+    const isPerguntaSobreDados = mensagemLower.includes('quanto') || 
+                                  mensagemLower.includes('saldo') || 
+                                  mensagemLower.includes('resumo') || 
+                                  mensagemLower.includes('gastei') && mensagemLower.includes('?') ||
+                                  mensagemLower.includes('quanto tenho') ||
+                                  mensagemLower.includes('meu saldo') ||
+                                  mensagemLower.includes('minhas finanças') ||
+                                  mensagemLower.includes('balanço');
+    
     try {
-      const transacoesUsuario = await db.getTransacoes(userId, 10);
-      const resumoUsuario = await db.getResumo(userId);
-      
-      if (transacoesUsuario.length > 0 || resumoUsuario.receitas > 0 || resumoUsuario.despesas > 0) {
-        contextoDados = `\n\nDADOS REAIS DO USUÁRIO (não invente outros):\n`;
-        contextoDados += `Resumo do mês (${resumoUsuario.mes}):\n`;
-        contextoDados += `- Receitas: R$ ${resumoUsuario.receitas.toFixed(2)}\n`;
-        contextoDados += `- Despesas: R$ ${resumoUsuario.despesas.toFixed(2)}\n`;
-        contextoDados += `- Saldo: R$ ${resumoUsuario.saldo.toFixed(2)}\n\n`;
+      // Só buscar contexto se for uma pergunta sobre dados
+      if (isPerguntaSobreDados) {
+        const transacoesUsuario = await db.getTransacoes(userId, 10);
+        const resumoUsuario = await db.getResumo(userId);
         
-        if (transacoesUsuario.length > 0) {
-          contextoDados += `Últimas transações:\n`;
-          transacoesUsuario.forEach(t => {
-            contextoDados += `- ${t.tipo === 'receita' ? '💰 Receita' : '💸 Despesa'}: R$ ${t.valor.toFixed(2)} - ${t.descricao} (${t.categoria})\n`;
-          });
+        if (transacoesUsuario.length > 0 || resumoUsuario.receitas > 0 || resumoUsuario.despesas > 0) {
+          contextoDados = `\n\n=== DADOS REAIS DO USUÁRIO (USE APENAS ESTES) ===\n`;
+          contextoDados += `Resumo de ${resumoUsuario.mes}:\n`;
+          contextoDados += `• Receitas: R$ ${resumoUsuario.receitas.toFixed(2)}\n`;
+          contextoDados += `• Despesas: R$ ${resumoUsuario.despesas.toFixed(2)}\n`;
+          contextoDados += `• Saldo: R$ ${resumoUsuario.saldo.toFixed(2)}\n\n`;
+          
+          if (transacoesUsuario.length > 0) {
+            contextoDados += `Últimas transações registradas:\n`;
+            transacoesUsuario.slice(0, 5).forEach((t, index) => {
+              contextoDados += `${index + 1}. ${t.tipo === 'receita' ? '💰 Receita' : '💸 Despesa'}: R$ ${t.valor.toFixed(2)} - ${t.descricao} (${t.categoria})\n`;
+            });
+          }
+          
+          contextoDados += `\n⚠️ IMPORTANTE: Use APENAS estes valores. NÃO invente outros dados!`;
+        } else {
+          contextoDados = `\n\n=== DADOS DO USUÁRIO ===\nNenhuma transação registrada ainda neste mês.\n`;
         }
-        
-        contextoDados += `\nUSE APENAS ESTES DADOS REAIS. NÃO INVENTE VALORES!`;
       }
     } catch (error) {
       console.error('Erro ao buscar contexto:', error);
     }
     
-    // Adicionar contexto à mensagem se for pergunta sobre dados
+    // Adicionar contexto à mensagem apenas se for pergunta
     const mensagemComContexto = message + contextoDados;
     
     // Obter resposta conversacional da IA
