@@ -1351,15 +1351,22 @@ app.post('/api/chat', requireAuth, async (req, res) => {
 // Enviar áudio no chat
 app.post('/api/chat/audio', requireAuth, checkPlanLimit('audio_enabled'), upload.single('audio'), async (req, res) => {
   try {
-    console.log('🎤 Chat: Recebendo áudio');
+    console.log('='.repeat(60));
+    console.log('🎤 CHAT: Recebendo requisição de áudio');
+    console.log('='.repeat(60));
     const userId = req.user.id;
     
     if (!req.file) {
+      console.error('❌ Nenhum arquivo de áudio foi enviado');
       return res.status(400).json({ error: 'Arquivo de áudio é obrigatório' });
     }
 
-    console.log('🎤 Áudio recebido:', req.file.originalname, req.file.size, 'bytes');
+    console.log('✅ Áudio recebido com sucesso!');
+    console.log('📁 Nome do arquivo:', req.file.originalname);
+    console.log('📦 Tamanho:', req.file.size, 'bytes');
+    console.log('🗂️ Tipo MIME:', req.file.mimetype);
     console.log('👤 User ID:', userId);
+    console.log('📊 Buffer length:', req.file.buffer?.length || 0);
     
     // Verificar se openaiService está disponível
     if (!openaiService || !openaiService.transcreverAudio || !openaiService.chatFinanceiro) {
@@ -1367,13 +1374,15 @@ app.post('/api/chat/audio', requireAuth, checkPlanLimit('audio_enabled'), upload
     }
     
     // Transcrever áudio
-    console.log('🎤 Transcrevendo áudio...');
+    console.log('🎤 Iniciando transcrição com Whisper API...');
     const transcricao = await openaiService.transcreverAudio(
       req.file.buffer,
       req.file.originalname
     );
     
-    console.log('📝 Transcrição:', transcricao);
+    console.log('✅ Transcrição completa!');
+    console.log('📝 Texto transcrito:', transcricao);
+    console.log('📊 Comprimento do texto:', transcricao.length, 'caracteres');
     
     // Buscar histórico do usuário
     const historico = await db.getChatHistory(userId, 20);
@@ -1445,14 +1454,24 @@ app.post('/api/chat/audio', requireAuth, checkPlanLimit('audio_enabled'), upload
     // Salvar resposta da IA
     await db.addChatMessage(userId, 'assistant', resposta);
     
+    console.log('✅ Resposta salva no banco de dados');
+    console.log('🎉 Processamento de áudio concluído com sucesso!');
+    console.log('='.repeat(60));
+    
     res.json({ 
       success: true,
       transcription: transcricao,
       message: resposta
     });
   } catch (error) {
-    console.error('❌ Erro ao processar áudio:', error);
+    console.error('='.repeat(60));
+    console.error('❌ ERRO ao processar áudio!');
+    console.error('❌ Mensagem:', error.message);
     console.error('❌ Stack:', error.stack);
+    if (error.response) {
+      console.error('❌ Resposta da API:', JSON.stringify(error.response.data, null, 2));
+    }
+    console.error('='.repeat(60));
     res.status(500).json({ 
       error: error.message,
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined

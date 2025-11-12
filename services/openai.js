@@ -160,10 +160,20 @@ async function transcreverAudio(audioBuffer, filename) {
   try {
     const fs = require('fs');
     const path = require('path');
+    const os = require('os');
     
-    // Salvar temporariamente o áudio
-    const tempPath = path.join('/tmp', filename);
+    console.log('🎤 Iniciando transcrição de áudio...');
+    console.log('📦 Tamanho do buffer:', audioBuffer.length, 'bytes');
+    console.log('📁 Nome do arquivo:', filename);
+    
+    // Usar diretório temporário do sistema operacional (funciona em Windows, Linux e Mac)
+    const tempDir = os.tmpdir();
+    const tempPath = path.join(tempDir, filename);
+    
+    console.log('💾 Salvando áudio temporariamente em:', tempPath);
     fs.writeFileSync(tempPath, audioBuffer);
+    
+    console.log('✅ Áudio salvo! Enviando para Whisper API...');
     
     // Transcrever com Whisper
     const transcription = await openai.audio.transcriptions.create({
@@ -172,12 +182,20 @@ async function transcreverAudio(audioBuffer, filename) {
       language: "pt"
     });
     
+    console.log('✅ Transcrição concluída!');
+    console.log('📝 Texto:', transcription.text);
+    
     // Limpar arquivo temporário
     fs.unlinkSync(tempPath);
+    console.log('🗑️ Arquivo temporário removido');
     
     return transcription.text;
   } catch (error) {
     console.error('❌ Erro ao transcrever áudio:', error.message);
+    console.error('❌ Stack:', error.stack);
+    if (error.response) {
+      console.error('❌ Resposta da API:', error.response.data);
+    }
     throw error;
   }
 }
