@@ -1059,14 +1059,22 @@ app.post('/api/chat', requireAuth, async (req, res) => {
         if (resultado.success) {
           const quantidadeDeletada = resultado.count || 0;
           const mesFormatado = moment().format('MMMM [de] YYYY');
+          
+          // ===== IMPORTANTE: LIMPAR TAMBÉM O HISTÓRICO DO CHAT =====
+          // Isso garante que a IA não "lembre" de valores antigos
+          console.log('🧹 Limpando histórico do chat também...');
+          await db.clearChatHistory(userId);
+          console.log('✅ Histórico do chat limpo!');
+          
           let confirmacao;
           
           if (quantidadeDeletada === 0) {
-            confirmacao = `✅ **Dashboard zerado!**\n\nVocê não tinha nenhuma transação registrada em ${mesFormatado}.\n\n📊 **Resumo Financeiro:**\n• Receitas: R$ 0,00\n• Despesas: R$ 0,00\n• Saldo: R$ 0,00\n\n🎉 Seu dashboard está limpo e pronto! Comece a registrar suas novas transações quando quiser.`;
+            confirmacao = `✅ **Dashboard e histórico zerados!**\n\nVocê não tinha nenhuma transação registrada em ${mesFormatado}.\n\n📊 **Resumo Financeiro:**\n• Receitas: R$ 0,00\n• Despesas: R$ 0,00\n• Saldo: R$ 0,00\n\n🎉 Tudo limpo! Comece do zero quando quiser.`;
           } else {
-            confirmacao = `✅ **Tudo apagado no Dashboard!**\n\n🗑️ Removi **${quantidadeDeletada} transação(ões)** de ${mesFormatado}.\n\nTodas as receitas, despesas e o saldo foram zerados.\n\n📊 **Resumo Financeiro Atual:**\n• Receitas: R$ 0,00\n• Despesas: R$ 0,00\n• Saldo: R$ 0,00\n\n🎉 Seu dashboard está completamente limpo! Agora você tem uma tela nova para começar de novo.\n\n💡 **Dica:** Para registrar novas transações, basta me dizer algo como "gastei 50 no supermercado" ou "recebi 3000 de salário".`;
+            confirmacao = `✅ **Tudo apagado no Dashboard e Histórico!**\n\n🗑️ Removi:\n• **${quantidadeDeletada} transação(ões)** de ${mesFormatado}\n• **Todo o histórico** de conversas\n\nTodas as receitas, despesas e o saldo foram zerados.\n\n📊 **Resumo Financeiro Atual:**\n• Receitas: R$ 0,00\n• Despesas: R$ 0,00\n• Saldo: R$ 0,00\n\n🎉 Dashboard e memória completamente limpos! Agora você pode começar do zero.\n\n💡 **Dica:** Registre novas transações dizendo "gastei 50 no supermercado" ou "recebi 3000 de salário".`;
           }
           
+          // Adicionar apenas esta mensagem de confirmação (histórico está limpo agora)
           await db.addChatMessage(userId, 'assistant', confirmacao);
           
           // Notificar WebSocket para atualizar Dashboard em tempo real
@@ -1077,13 +1085,14 @@ app.post('/api/chat', requireAuth, async (req, res) => {
             });
           }
           
-          console.log(`✅ Dashboard limpo com sucesso! ${quantidadeDeletada} transações removidas.`);
+          console.log(`✅ Dashboard E HISTÓRICO limpos com sucesso! ${quantidadeDeletada} transações removidas.`);
           
           return res.json({
             success: true,
             message: confirmacao,
             cleared: true,
-            count: quantidadeDeletada
+            count: quantidadeDeletada,
+            historyCleared: true
           });
         } else {
           const erroDetalhado = resultado.error || 'Erro desconhecido';
