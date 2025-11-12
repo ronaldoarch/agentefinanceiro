@@ -1058,23 +1058,26 @@ app.post('/api/chat', requireAuth, async (req, res) => {
         
         if (resultado.success) {
           const quantidadeDeletada = resultado.count || 0;
+          const mesFormatado = moment().format('MMMM [de] YYYY');
           let confirmacao;
           
           if (quantidadeDeletada === 0) {
-            confirmacao = `✅ **Pronto!** Você não tinha nenhuma transação registrada em ${moment().format('MMMM YYYY')}.\n\n- Receitas: R$ 0.00\n- Despesas: R$ 0.00\n- Saldo: R$ 0.00\n\nComece a registrar suas transações quando quiser! 🎇`;
+            confirmacao = `✅ **Dashboard zerado!**\n\nVocê não tinha nenhuma transação registrada em ${mesFormatado}.\n\n📊 **Resumo Financeiro:**\n• Receitas: R$ 0,00\n• Despesas: R$ 0,00\n• Saldo: R$ 0,00\n\n🎉 Seu dashboard está limpo e pronto! Comece a registrar suas novas transações quando quiser.`;
           } else {
-            confirmacao = `✅ **Tudo limpo!** Removi **${quantidadeDeletada} transação(ões)** de ${moment().format('MMMM YYYY')}, incluindo receitas e despesas.\n\nSeu resumo financeiro para este mês agora está completamente zerado:\n\n- Receitas: R$ 0.00\n- Despesas: R$ 0.00\n- Saldo: R$ 0.00\n\nAgora você tem uma tela limpa para começar de novo! Se precisar de ajuda para planejar suas próximas movimentações financeiras, é só chamar! ✅🎇`;
+            confirmacao = `✅ **Tudo apagado no Dashboard!**\n\n🗑️ Removi **${quantidadeDeletada} transação(ões)** de ${mesFormatado}.\n\nTodas as receitas, despesas e o saldo foram zerados.\n\n📊 **Resumo Financeiro Atual:**\n• Receitas: R$ 0,00\n• Despesas: R$ 0,00\n• Saldo: R$ 0,00\n\n🎉 Seu dashboard está completamente limpo! Agora você tem uma tela nova para começar de novo.\n\n💡 **Dica:** Para registrar novas transações, basta me dizer algo como "gastei 50 no supermercado" ou "recebi 3000 de salário".`;
           }
           
           await db.addChatMessage(userId, 'assistant', confirmacao);
           
-          // Notificar WebSocket
+          // Notificar WebSocket para atualizar Dashboard em tempo real
           if (global.notifyClients) {
             global.notifyClients({
               type: 'transacoes_limpas',
               data: { userId: userId, mesAno: mesAnoAtual, count: quantidadeDeletada }
             });
           }
+          
+          console.log(`✅ Dashboard limpo com sucesso! ${quantidadeDeletada} transações removidas.`);
           
           return res.json({
             success: true,

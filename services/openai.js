@@ -370,35 +370,79 @@ async function detectarDelecao(mensagem) {
 // Detectar se quer limpar TODAS as transações
 async function detectarLimpezaTotal(mensagem) {
   try {
-    const mensagemLower = mensagem.toLowerCase();
+    const mensagemLower = mensagem.toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, ''); // Remove acentos
     
     // Palavras-chave para limpar tudo
-    const keywordsTudo = ['tudo', 'todas', 'todos', 'total', 'completamente'];
-    const keywordsLimpar = ['limpar', 'limpe', 'resetar', 'reset', 'zerar', 'zerar', 'apagar', 'remover', 'deletar'];
+    const keywordsTudo = ['tudo', 'todas', 'todos', 'total', 'completamente', 'geral'];
+    const keywordsLimpar = ['limpar', 'limpe', 'resetar', 'reset', 'zerar', 'zere', 'apagar', 'apague', 'remover', 'remova', 'remove', 'deletar', 'delete', 'excluir', 'exclua'];
+    const keywordsDashboard = ['dashboard', 'dashbord', 'painel', 'dash'];
     
     const temTudo = keywordsTudo.some(k => mensagemLower.includes(k));
     const temLimpar = keywordsLimpar.some(k => mensagemLower.includes(k));
+    const temDashboard = keywordsDashboard.some(k => mensagemLower.includes(k));
     
-    // Verificar frases específicas
+    // Verificar frases específicas (com mais variações)
     const frasesEspecificas = [
       'remove tudo',
       'remover tudo',
+      'remova tudo',
       'apagar tudo',
+      'apague tudo',
       'deletar tudo',
+      'delete tudo',
       'limpar tudo',
+      'limpe tudo',
       'zerar tudo',
-      'limpar transações',
-      'apagar transações',
-      'remover transações',
+      'zere tudo',
+      'excluir tudo',
+      'exclua tudo',
+      'limpar transacoes',
+      'limpe transacoes',
+      'apagar transacoes',
+      'apague transacoes',
+      'remover transacoes',
+      'remova transacoes',
+      'deletar transacoes',
+      'delete transacoes',
       'resetar tudo',
-      'começar do zero',
-      'vamos limpar'
+      'reset tudo',
+      'comecar do zero',
+      'comece do zero',
+      'vamos limpar',
+      'limpar o dashboard',
+      'limpe o dashboard',
+      'limpar dashboard',
+      'limpe dashboard',
+      'apagar dashboard',
+      'apague dashboard',
+      'zerar dashboard',
+      'zere dashboard',
+      'limpar o painel',
+      'limpe o painel',
+      'apagar o painel',
+      'apague o painel',
+      'zerar o painel',
+      'zere o painel',
+      'apagar no dashboard',
+      'apague no dashboard',
+      'remover no dashboard',
+      'remova no dashboard',
+      'deletar no dashboard',
+      'delete no dashboard',
+      'limpar no dashboard',
+      'limpe no dashboard'
     ];
     
     const temFraseEspecifica = frasesEspecificas.some(f => mensagemLower.includes(f));
     
+    // Retorna true se:
+    // 1. Tem palavra de "limpar" + palavra de "tudo", OU
+    // 2. Tem palavra de "limpar" + palavra de "dashboard", OU
+    // 3. Tem uma frase específica
     return {
-      isLimpezaTotal: (temTudo && temLimpar) || temFraseEspecifica
+      isLimpezaTotal: (temTudo && temLimpar) || (temDashboard && temLimpar) || temFraseEspecifica
     };
   } catch (error) {
     console.error('Erro ao detectar limpeza total:', error);
