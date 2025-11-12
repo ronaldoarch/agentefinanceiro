@@ -81,6 +81,21 @@ function Dashboard({ resumo, transacoes }) {
     return total + (l.valor ? parseFloat(l.valor) : 0);
   }, 0);
 
+  // Calcular lembretes que vencem NO MÊS ATUAL para adicionar às despesas
+  const mesAtual = moment().format('YYYY-MM');
+  const lembretesDoMesAtual = lembretes.filter(l => {
+    const dataVencimento = moment(l.data_vencimento);
+    return dataVencimento.format('YYYY-MM') === mesAtual;
+  });
+  
+  const totalLembretesDoMes = lembretesDoMesAtual.reduce((total, l) => {
+    return total + (l.valor ? parseFloat(l.valor) : 0);
+  }, 0);
+
+  // Ajustar despesas e saldo incluindo lembretes do mês
+  const despesasAjustadas = resumo.despesas + totalLembretesDoMes;
+  const saldoAjustado = resumo.receitas - despesasAjustadas;
+
   // Função para verificar se lembrete está atrasado
   const isAtrasado = (dataVencimento) => {
     return moment(dataVencimento).isBefore(moment());
@@ -108,17 +123,24 @@ function Dashboard({ resumo, transacoes }) {
         <div className="summary-card despesas">
           <div className="summary-icon">📉</div>
           <div className="summary-content">
-            <div className="summary-label">Despesas</div>
-            <div className="summary-value">R$ {resumo.despesas.toFixed(2)}</div>
-            <div className="summary-period">{resumo.mes}</div>
+            <div className="summary-label">Despesas + A Pagar</div>
+            <div className="summary-value">R$ {despesasAjustadas.toFixed(2)}</div>
+            <div className="summary-period">
+              {resumo.mes}
+              {totalLembretesDoMes > 0 && (
+                <span style={{ fontSize: '10px', display: 'block', marginTop: '2px' }}>
+                  (inclui R$ {totalLembretesDoMes.toFixed(2)} de lembretes)
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className={`summary-card saldo ${resumo.saldo >= 0 ? 'positivo' : 'negativo'}`}>
-          <div className="summary-icon">{resumo.saldo >= 0 ? '💰' : '⚠️'}</div>
+        <div className={`summary-card saldo ${saldoAjustado >= 0 ? 'positivo' : 'negativo'}`}>
+          <div className="summary-icon">{saldoAjustado >= 0 ? '💰' : '⚠️'}</div>
           <div className="summary-content">
             <div className="summary-label">Saldo</div>
-            <div className="summary-value">R$ {resumo.saldo.toFixed(2)}</div>
+            <div className="summary-value">R$ {saldoAjustado.toFixed(2)}</div>
             <div className="summary-period">{resumo.mes}</div>
           </div>
         </div>
