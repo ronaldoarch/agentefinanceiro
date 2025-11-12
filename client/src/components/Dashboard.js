@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import './Dashboard.css';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import moment from 'moment';
@@ -7,6 +8,33 @@ import 'moment/locale/pt-br';
 moment.locale('pt-br');
 
 function Dashboard({ resumo, transacoes }) {
+  const [lembretes, setLembretes] = useState([]);
+  const [mesSelecionado, setMesSelecionado] = useState(moment().format('YYYY-MM'));
+  const [loadingLembretes, setLoadingLembretes] = useState(true);
+  
+  const token = localStorage.getItem('token');
+  const apiUrl = process.env.REACT_APP_API_URL || '';
+
+  // Carregar lembretes
+  useEffect(() => {
+    const carregarLembretes = async () => {
+      try {
+        setLoadingLembretes(true);
+        const response = await axios.get(`${apiUrl}/api/lembretes`, {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { status: 'pendente' }
+        });
+        setLembretes(response.data);
+      } catch (error) {
+        console.error('Erro ao carregar lembretes:', error);
+      } finally {
+        setLoadingLembretes(false);
+      }
+    };
+    
+    carregarLembretes();
+  }, [apiUrl, token]);
+
   if (!resumo) return null;
 
   // Preparar dados para gráfico de pizza
@@ -47,6 +75,38 @@ function Dashboard({ resumo, transacoes }) {
       despesas
     });
   }
+
+  // Filtrar lembretes pelo mês selecionado
+  const lembretesFiltrados = lembretes.filter(l => {
+    const dataVencimento = moment(l.data_vencimento);
+    return dataVencimento.format('YYYY-MM') === mesSelecionado;
+  });
+
+  // Calcular total a pagar no mês
+  const totalAPagar = lembretesFiltrados.reduce((total, l) => {
+    return total + (l.valor ? parseFloat(l.valor) : 0);
+  }, 0);
+
+  // Gerar lista de meses (últimos 3 e próximos 3)
+  const mesesDisponiveis = [];
+  for (let i = -3; i <= 3; i++) {
+    const mes = moment().add(i, 'months');
+    mesesDisponiveis.push({
+      valor: mes.format('YYYY-MM'),
+      label: mes.format('MMMM YYYY')
+    });
+  }
+
+  // Função para verificar se lembrete está atrasado
+  const isAtrasado = (dataVencimento) => {
+    return moment(dataVencimento).isBefore(moment());
+  };
+
+  // Função para verificar se é urgente (próximos 3 dias)
+  const isUrgente = (dataVencimento) => {
+    const dias = moment(dataVencimento).diff(moment(), 'days');
+    return dias >= 0 && dias <= 3;
+  };
 
   return (
     <div className="dashboard">
@@ -135,31 +195,115 @@ function Dashboard({ resumo, transacoes }) {
         </div>
       </div>
 
-      {/* Últimas transações */}
-      <div className="card">
-        <h3 className="card-title">💳 Últimas Transações</h3>
-        <div className="transactions-list">
-          {transacoes.slice(0, 5).map((t, index) => (
-            <div key={index} className="transaction-item">
-              <div className="transaction-left">
-                <div className="transaction-icon">
-                  {t.tipo === 'receita' ? '📈' : '📉'}
-                </div>
-                <div className="transaction-info">
-                  <div className="transaction-desc">{t.descricao}</div>
-                  <div className="transaction-meta">
-                    <span className="transaction-category">{t.categoria}</span>
-                    <span className="transaction-date">
-                      {moment(t.data).fromNow()}
-                    </span>
+      {/* Grid para Últimas Transações e A Pagar */}
+      <div className="bottom-grid">
+        {/* Últimas transações */}
+        <div className="card">
+          <h3 className="card-title">💳 Últimas Transações</h3>
+          <div className="transactions-list">
+            {transacoes.slice(0, 5).map((t, index) => (
+              <div key={index} className="transaction-item">
+                <div className="transaction-left">
+                  <div className="transaction-icon">
+                    {t.tipo === 'receita' ? '📈' : '📉'}
+                  </div>
+                  <div className="transaction-info">
+                    <div className="transaction-desc">{t.descricao}</div>
+                    <div className="transaction-meta">
+                      <span className="transaction-category">{t.categoria}</span>
+                      <span className="transaction-date">
+                        {moment(t.data).fromNow()}
+                      </span>
+                    </div>
                   </div>
                 </div>
+                <div className={`transaction-value ${t.tipo}`}>
+                  {t.tipo === 'receita' ? '+' : '-'} R$ {t.valor.toFixed(2)}
+                </div>
               </div>
-              <div className={`transaction-value ${t.tipo}`}>
-                {t.tipo === 'receita' ? '+' : '-'} R$ {t.valor.toFixed(2)}
+            ))}
+          </div>
+        </div>
+
+        {/* Card A Pagar */}
+        <div className="card a-pagar-card">
+          <div className="card-header-with-filter">
+            <h3 className="card-title">💸 A Pagar</h3>
+            <select 
+              className="mes-filtro"
+              value={mesSelecionado}
+              onChange={(e) => setMesSelecionado(e.target.value)}
+            >
+              {mesesDisponiveis.map(mes => (
+                <option key={mes.valor} value={mes.valor}>
+                  {mes.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Total a pagar do mês */}
+          <div className="total-a-pagar">
+            <span className="total-label">Total do Mês:</span>
+            <span className="total-valor">R$ {totalAPagar.toFixed(2)}</span>
+          </div>
+
+          {/* Lista de lembretes */}
+          <div className="lembretes-list">
+            {loadingLembretes ? (
+              <div className="loading-lembretes">⏳ Carregando...</div>
+            ) : lembretesFiltrados.length === 0 ? (
+              <div className="no-lembretes">
+                <p>✅ Nenhuma conta a pagar em {moment(mesSelecionado).format('MMMM YYYY')}</p>
               </div>
-            </div>
-          ))}
+            ) : (
+              lembretesFiltrados
+                .sort((a, b) => moment(a.data_vencimento).diff(moment(b.data_vencimento)))
+                .map((lembrete) => {
+                  const atrasado = isAtrasado(lembrete.data_vencimento);
+                  const urgente = isUrgente(lembrete.data_vencimento);
+                  const diasRestantes = moment(lembrete.data_vencimento).diff(moment(), 'days');
+                  
+                  return (
+                    <div 
+                      key={lembrete.id} 
+                      className={`lembrete-item ${atrasado ? 'atrasado' : urgente ? 'urgente' : ''}`}
+                    >
+                      <div className="lembrete-left">
+                        <div className="lembrete-icon">
+                          {atrasado ? '⚠️' : urgente ? '🔔' : '📅'}
+                        </div>
+                        <div className="lembrete-info">
+                          <div className="lembrete-titulo">{lembrete.titulo}</div>
+                          <div className="lembrete-meta">
+                            <span className="lembrete-categoria">
+                              {lembrete.categoria}
+                            </span>
+                            <span className="lembrete-data">
+                              {moment(lembrete.data_vencimento).format('DD/MM/YYYY')}
+                            </span>
+                            <span className={`lembrete-status ${atrasado ? 'status-atrasado' : urgente ? 'status-urgente' : 'status-normal'}`}>
+                              {atrasado 
+                                ? `${Math.abs(diasRestantes)} dia(s) atrasado` 
+                                : urgente 
+                                ? diasRestantes === 0 
+                                  ? 'Vence hoje!' 
+                                  : `${diasRestantes} dia(s) restante(s)` 
+                                : `${diasRestantes} dia(s)`}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      {lembrete.valor && (
+                        <div className="lembrete-valor">
+                          R$ {parseFloat(lembrete.valor).toFixed(2)}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+            )}
+          </div>
         </div>
       </div>
     </div>
