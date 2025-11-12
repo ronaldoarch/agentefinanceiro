@@ -157,46 +157,92 @@ async function analisarPadroesEAlertas(transacoes, resumo) {
 
 // Transcrever áudio usando Whisper
 async function transcreverAudio(audioBuffer, filename) {
+  const fs = require('fs');
+  const path = require('path');
+  const os = require('os');
+  
+  let tempPath = null;
+  
   try {
-    const fs = require('fs');
-    const path = require('path');
-    const os = require('os');
-    
     console.log('🎤 Iniciando transcrição de áudio...');
     console.log('📦 Tamanho do buffer:', audioBuffer.length, 'bytes');
     console.log('📁 Nome do arquivo:', filename);
     
-    // Usar diretório temporário do sistema operacional (funciona em Windows, Linux e Mac)
+    // Verificar se há API Key configurada
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY não configurada! Configure a variável de ambiente.');
+    }
+    
+    // Validar tamanho mínimo do áudio (1KB)
+    if (audioBuffer.length < 1024) {
+      throw new Error('Áudio muito curto ou vazio. Grave por pelo menos 1 segundo.');
+    }
+    
+    // Validar tamanho máximo (25MB - limite da API Whisper)
+    const maxSize = 25 * 1024 * 1024; // 25MB
+    if (audioBuffer.length > maxSize) {
+      throw new Error(`Áudio muito grande (${(audioBuffer.length / 1024 / 1024).toFixed(2)}MB). Máximo: 25MB`);
+    }
+    
+    // Usar diretório temporário do sistema operacional
     const tempDir = os.tmpdir();
-    const tempPath = path.join(tempDir, filename);
+    tempPath = path.join(tempDir, filename);
     
     console.log('💾 Salvando áudio temporariamente em:', tempPath);
     fs.writeFileSync(tempPath, audioBuffer);
     
-    console.log('✅ Áudio salvo! Enviando para Whisper API...');
+    // Verificar se o arquivo foi criado
+    if (!fs.existsSync(tempPath)) {
+      throw new Error('Falha ao salvar arquivo temporário');
+    }
+    
+    const fileSize = fs.statSync(tempPath).size;
+    console.log('✅ Áudio salvo! Tamanho no disco:', fileSize, 'bytes');
+    
+    console.log('📡 Enviando para Whisper API...');
     
     // Transcrever com Whisper
     const transcription = await openai.audio.transcriptions.create({
       file: fs.createReadStream(tempPath),
       model: "whisper-1",
-      language: "pt"
+      language: "pt",
+      response_format: "text"
     });
     
     console.log('✅ Transcrição concluída!');
-    console.log('📝 Texto:', transcription.text);
+    console.log('📝 Texto:', transcription);
+    console.log('📏 Comprimento:', transcription.length, 'caracteres');
     
-    // Limpar arquivo temporário
-    fs.unlinkSync(tempPath);
-    console.log('🗑️ Arquivo temporário removido');
-    
-    return transcription.text;
+    return transcription;
   } catch (error) {
     console.error('❌ Erro ao transcrever áudio:', error.message);
     console.error('❌ Stack:', error.stack);
+    
     if (error.response) {
-      console.error('❌ Resposta da API:', error.response.data);
+      console.error('❌ Status HTTP:', error.response.status);
+      console.error('❌ Resposta da API:', JSON.stringify(error.response.data, null, 2));
     }
+    
+    // Mensagens de erro mais amigáveis
+    if (error.message.includes('API_KEY')) {
+      throw new Error('Configuração da OpenAI está incorreta. Contate o administrador.');
+    } else if (error.message.includes('quota')) {
+      throw new Error('Limite de uso da API atingido. Tente novamente mais tarde.');
+    } else if (error.message.includes('Invalid file format')) {
+      throw new Error('Formato de áudio não suportado. Tente gravar novamente.');
+    }
+    
     throw error;
+  } finally {
+    // Limpar arquivo temporário (mesmo se houver erro)
+    if (tempPath && fs.existsSync(tempPath)) {
+      try {
+        fs.unlinkSync(tempPath);
+        console.log('🗑️ Arquivo temporário removido');
+      } catch (cleanupError) {
+        console.error('⚠️ Erro ao remover arquivo temporário:', cleanupError.message);
+      }
+    }
   }
 }
 
