@@ -1151,6 +1151,53 @@ app.post('/api/chat', requireAuth, async (req, res) => {
       console.error('Stack:', error.stack);
     }
     
+    // DETECTAR E CRIAR LEMBRETES
+    let lembretesDetectados = [];
+    let lembretesCriados = [];
+    
+    try {
+      console.log('📅 Verificando se é um lembrete...');
+      lembretesDetectados = await openaiService.detectarLembrete(message);
+      console.log('📅 Resultado da detecção de lembretes:', JSON.stringify(lembretesDetectados, null, 2));
+      
+      if (lembretesDetectados && lembretesDetectados.length > 0) {
+        console.log(`📅 ${lembretesDetectados.length} LEMBRETE(S) DETECTADO(S)!`);
+        
+        // Criar TODOS os lembretes no banco
+        for (let i = 0; i < lembretesDetectados.length; i++) {
+          const lembrete = lembretesDetectados[i];
+          console.log(`📅 [${i+1}/${lembretesDetectados.length}] Criando lembrete:`, JSON.stringify(lembrete));
+          
+          try {
+            const lembreteId = await db.createLembrete(
+              userId,
+              lembrete.titulo,
+              lembrete.descricao,
+              lembrete.valor,
+              lembrete.categoria,
+              lembrete.dataVencimento,
+              lembrete.recorrencia,
+              true, // notificar WhatsApp por padrão
+              lembrete.diasAntecedencia
+            );
+            
+            console.log(`✅ LEMBRETE CRIADO! ID: ${lembreteId}`);
+            lembretesCriados.push({ id: lembreteId, ...lembrete });
+          } catch (saveError) {
+            console.error(`❌ ERRO ao criar lembrete ${i+1}:`, saveError.message);
+            console.error('Stack:', saveError.stack);
+          }
+        }
+        
+        console.log(`📅 ${lembretesCriados.length} lembretes criados!`);
+      } else {
+        console.log('ℹ️ Não é um lembrete');
+      }
+    } catch (error) {
+      console.error('❌ ERRO ao detectar/criar lembrete:', error);
+      console.error('Stack:', error.stack);
+    }
+    
     // Buscar dados reais do usuário para contexto
     let contextoDados = '';
     try {
@@ -1185,15 +1232,36 @@ app.post('/api/chat', requireAuth, async (req, res) => {
     const resposta = await openaiService.chatFinanceiro(mensagemComContexto, historico);
     console.log('✅ Resposta da IA recebida');
     
-    // Se salvou transações, adicionar confirmação
-    if (transacoesSalvas.length > 0) {
-      let confirmacao = `\n\n✅ **${transacoesSalvas.length} transação(ões) registrada(s) automaticamente!**\n\n`;
+    // Se salvou transações ou criou lembretes, adicionar confirmação
+    if (transacoesSalvas.length > 0 || lembretesCriados.length > 0) {
+      let confirmacao = '';
       
-      transacoesSalvas.forEach(t => {
-        confirmacao += `- ${t.tipo === 'receita' ? '💰' : '💸'} R$ ${t.valor.toFixed(2)} - ${t.descricao} (${t.categoria})\n`;
-      });
+      // Confirmação de transações
+      if (transacoesSalvas.length > 0) {
+        confirmacao += `\n\n✅ **${transacoesSalvas.length} transação(ões) registrada(s) automaticamente!**\n\n`;
+        
+        transacoesSalvas.forEach(t => {
+          confirmacao += `- ${t.tipo === 'receita' ? '💰' : '💸'} R$ ${t.valor.toFixed(2)} - ${t.descricao} (${t.categoria})\n`;
+        });
+        
+        confirmacao += `\n📊 **Veja no Dashboard agora!** (aba Dashboard acima)`;
+      }
       
-      confirmacao += `\n📊 **Veja no Dashboard agora!** (aba Dashboard acima)`;
+      // Confirmação de lembretes
+      if (lembretesCriados.length > 0) {
+        if (confirmacao) confirmacao += '\n\n';
+        confirmacao += `📅 **${lembretesCriados.length} lembrete(s) criado(s) automaticamente!**\n\n`;
+        
+        lembretesCriados.forEach(l => {
+          const dataFormatada = moment(l.dataVencimento).format('DD/MM/YYYY [às] HH:mm');
+          confirmacao += `- 🔔 ${l.titulo}`;
+          if (l.valor) confirmacao += ` - R$ ${parseFloat(l.valor).toFixed(2)}`;
+          confirmacao += ` (vence em ${dataFormatada})\n`;
+        });
+        
+        confirmacao += `\n📱 **Você receberá notificação no WhatsApp!**\n`;
+        confirmacao += `📅 **Veja todos na aba Lembretes acima!**`;
+      }
       
       // Salvar resposta da IA com confirmação
       await db.addChatMessage(userId, 'assistant', resposta + confirmacao);
@@ -1202,6 +1270,7 @@ app.post('/api/chat', requireAuth, async (req, res) => {
         success: true,
         message: resposta + confirmacao,
         transacoes: transacoesSalvas,
+        lembretes: lembretesCriados,
         saved: true
       });
     }
