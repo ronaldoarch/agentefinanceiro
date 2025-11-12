@@ -1201,68 +1201,97 @@ app.post('/api/chat', requireAuth, async (req, res) => {
       console.error('Stack:', error.stack);
     }
     
-    // Buscar dados reais do usuário para contexto (APENAS SE FOR PERGUNTA)
-    let contextoDados = '';
+    // Verificar se é APENAS uma transação (sem pergunta) ou uma pergunta real
     const mensagemLower = message.toLowerCase();
-    const isPerguntaSobreDados = mensagemLower.includes('quanto') || 
+    const isTransacaoSimples = transacoesSalvas.length > 0;
+    const isPerguntaSobreDados = mensagemLower.includes('?') || 
+                                  mensagemLower.includes('quanto') || 
                                   mensagemLower.includes('saldo') || 
                                   mensagemLower.includes('resumo') || 
-                                  mensagemLower.includes('gastei') && mensagemLower.includes('?') ||
                                   mensagemLower.includes('quanto tenho') ||
                                   mensagemLower.includes('meu saldo') ||
                                   mensagemLower.includes('minhas finanças') ||
-                                  mensagemLower.includes('balanço');
+                                  mensagemLower.includes('minhas financas') ||
+                                  mensagemLower.includes('balanço') ||
+                                  mensagemLower.includes('balanco') ||
+                                  mensagemLower.includes('total');
     
-    try {
-      // Só buscar contexto se for uma pergunta sobre dados
-      if (isPerguntaSobreDados) {
-        const transacoesUsuario = await db.getTransacoes(userId, 10);
-        const resumoUsuario = await db.getResumo(userId);
-        
-        if (transacoesUsuario.length > 0 || resumoUsuario.receitas > 0 || resumoUsuario.despesas > 0) {
-          contextoDados = `\n\n=== DADOS REAIS DO USUÁRIO (USE APENAS ESTES) ===\n`;
-          contextoDados += `Resumo de ${resumoUsuario.mes}:\n`;
-          contextoDados += `• Receitas: R$ ${resumoUsuario.receitas.toFixed(2)}\n`;
-          contextoDados += `• Despesas: R$ ${resumoUsuario.despesas.toFixed(2)}\n`;
-          contextoDados += `• Saldo: R$ ${resumoUsuario.saldo.toFixed(2)}\n\n`;
+    let resposta;
+    
+    // Se for APENAS uma transação (não é pergunta), usar resposta simples SEM contexto
+    if (isTransacaoSimples && !isPerguntaSobreDados) {
+      console.log('✅ Transação detectada - usando resposta simples sem contexto');
+      // Resposta simples e direta, sem mencionar saldo total
+      resposta = '✅ Transação registrada com sucesso! Você já pode ver no Dashboard.';
+    } else {
+      // É uma pergunta ou conversa normal - buscar contexto se necessário
+      let contextoDados = '';
+      
+      try {
+        // Só buscar contexto se for uma pergunta sobre dados
+        if (isPerguntaSobreDados) {
+          const transacoesUsuario = await db.getTransacoes(userId, 10);
+          const resumoUsuario = await db.getResumo(userId);
           
-          if (transacoesUsuario.length > 0) {
-            contextoDados += `Últimas transações registradas:\n`;
-            transacoesUsuario.slice(0, 5).forEach((t, index) => {
-              contextoDados += `${index + 1}. ${t.tipo === 'receita' ? '💰 Receita' : '💸 Despesa'}: R$ ${t.valor.toFixed(2)} - ${t.descricao} (${t.categoria})\n`;
-            });
+          if (transacoesUsuario.length > 0 || resumoUsuario.receitas > 0 || resumoUsuario.despesas > 0) {
+            contextoDados = `\n\n=== DADOS REAIS DO USUÁRIO (USE APENAS ESTES) ===\n`;
+            contextoDados += `Resumo de ${resumoUsuario.mes}:\n`;
+            contextoDados += `• Receitas: R$ ${resumoUsuario.receitas.toFixed(2)}\n`;
+            contextoDados += `• Despesas: R$ ${resumoUsuario.despesas.toFixed(2)}\n`;
+            contextoDados += `• Saldo: R$ ${resumoUsuario.saldo.toFixed(2)}\n\n`;
+            
+            if (transacoesUsuario.length > 0) {
+              contextoDados += `Últimas transações registradas:\n`;
+              transacoesUsuario.slice(0, 5).forEach((t, index) => {
+                contextoDados += `${index + 1}. ${t.tipo === 'receita' ? '💰 Receita' : '💸 Despesa'}: R$ ${t.valor.toFixed(2)} - ${t.descricao} (${t.categoria})\n`;
+              });
+            }
+            
+            contextoDados += `\n⚠️ IMPORTANTE: Use APENAS estes valores. NÃO invente outros dados!`;
+          } else {
+            contextoDados = `\n\n=== DADOS DO USUÁRIO ===\nNenhuma transação registrada ainda neste mês.\n`;
           }
-          
-          contextoDados += `\n⚠️ IMPORTANTE: Use APENAS estes valores. NÃO invente outros dados!`;
-        } else {
-          contextoDados = `\n\n=== DADOS DO USUÁRIO ===\nNenhuma transação registrada ainda neste mês.\n`;
         }
+      } catch (error) {
+        console.error('Erro ao buscar contexto:', error);
       }
-    } catch (error) {
-      console.error('Erro ao buscar contexto:', error);
+      
+      // Adicionar contexto à mensagem apenas se for pergunta
+      const mensagemComContexto = message + contextoDados;
+      
+      // Obter resposta conversacional da IA
+      console.log('🤖 Processando com IA...');
+      resposta = await openaiService.chatFinanceiro(mensagemComContexto, historico);
+      console.log('✅ Resposta da IA recebida');
     }
-    
-    // Adicionar contexto à mensagem apenas se for pergunta
-    const mensagemComContexto = message + contextoDados;
-    
-    // Obter resposta conversacional da IA
-    console.log('🤖 Processando com IA...');
-    const resposta = await openaiService.chatFinanceiro(mensagemComContexto, historico);
-    console.log('✅ Resposta da IA recebida');
     
     // Se salvou transações ou criou lembretes, adicionar confirmação
     if (transacoesSalvas.length > 0 || lembretesCriados.length > 0) {
       let confirmacao = '';
       
-      // Confirmação de transações
+      // Confirmação de transações (apenas detalhes, sem duplicar mensagem)
       if (transacoesSalvas.length > 0) {
-        confirmacao += `\n\n✅ **${transacoesSalvas.length} transação(ões) registrada(s) automaticamente!**\n\n`;
-        
-        transacoesSalvas.forEach(t => {
-          confirmacao += `- ${t.tipo === 'receita' ? '💰' : '💸'} R$ ${t.valor.toFixed(2)} - ${t.descricao} (${t.categoria})\n`;
-        });
-        
-        confirmacao += `\n📊 **Veja no Dashboard agora!** (aba Dashboard acima)`;
+        // Se for transação simples, não adicionar confirmação duplicada
+        // (já foi confirmado na resposta acima)
+        if (!isTransacaoSimples || isPerguntaSobreDados) {
+          confirmacao += `\n\n✅ **${transacoesSalvas.length} transação(ões) registrada(s) automaticamente!**\n\n`;
+          
+          transacoesSalvas.forEach(t => {
+            confirmacao += `- ${t.tipo === 'receita' ? '💰' : '💸'} R$ ${t.valor.toFixed(2)} - ${t.descricao} (${t.categoria})\n`;
+          });
+          
+          confirmacao += `\n📊 **Veja no Dashboard agora!**`;
+        } else {
+          // Para transação simples, apenas mostrar os detalhes de forma limpa
+          confirmacao += `\n\n`;
+          transacoesSalvas.forEach(t => {
+            confirmacao += `${t.tipo === 'receita' ? '💰' : '💸'} **R$ ${t.valor.toFixed(2)}** - ${t.descricao}`;
+            if (t.categoria && t.categoria !== 'Outros') {
+              confirmacao += ` (${t.categoria})`;
+            }
+            confirmacao += `\n`;
+          });
+        }
       }
       
       // Confirmação de lembretes
