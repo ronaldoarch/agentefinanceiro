@@ -456,6 +456,162 @@ async function clearChatHistory(userId) {
   return !error;
 }
 
+// ================== LEMBRETES ==================
+
+async function createLembrete(userId, titulo, descricao, valor, categoria, dataVencimento, recorrencia = 'unico', notificarWhatsApp = true, diasAntecedencia = 1) {
+  console.log(`📝 CRIANDO lembrete para usuário ${userId}: ${titulo}`);
+  
+  const { data, error } = await supabase
+    .from('lembretes')
+    .insert({
+      user_id: userId,
+      titulo,
+      descricao,
+      valor,
+      categoria,
+      data_vencimento: dataVencimento,
+      recorrencia,
+      notificar_whatsapp: notificarWhatsApp,
+      dias_antecedencia: diasAntecedencia
+    })
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('❌ Erro ao criar lembrete:', error);
+    throw error;
+  }
+  
+  console.log(`✅ Lembrete criado! ID: ${data.id}`);
+  return data.id;
+}
+
+async function getLembretes(userId, status = null) {
+  console.log(`🔍 Buscando lembretes do usuário ${userId}`);
+  
+  let query = supabase
+    .from('lembretes')
+    .select('*')
+    .eq('user_id', userId)
+    .order('data_vencimento', { ascending: true });
+  
+  if (status) {
+    query = query.eq('status', status);
+  }
+  
+  const { data, error } = await query;
+  
+  if (error) {
+    console.error('❌ Erro ao buscar lembretes:', error);
+    return [];
+  }
+  
+  console.log(`📊 Encontrados ${data.length} lembretes`);
+  return data;
+}
+
+async function getLembreteById(lembreteId, userId) {
+  const { data, error } = await supabase
+    .from('lembretes')
+    .select('*')
+    .eq('id', lembreteId)
+    .eq('user_id', userId)
+    .single();
+  
+  if (error) return null;
+  return data;
+}
+
+async function updateLembrete(lembreteId, userId, updates) {
+  console.log(`✏️ Atualizando lembrete ${lembreteId}`);
+  
+  const { error } = await supabase
+    .from('lembretes')
+    .update(updates)
+    .eq('id', lembreteId)
+    .eq('user_id', userId);
+  
+  if (error) {
+    console.error('❌ Erro ao atualizar lembrete:', error);
+    return false;
+  }
+  
+  console.log('✅ Lembrete atualizado!');
+  return true;
+}
+
+async function deleteLembrete(lembreteId, userId) {
+  console.log(`🗑️ Deletando lembrete ${lembreteId}`);
+  
+  const { error } = await supabase
+    .from('lembretes')
+    .delete()
+    .eq('id', lembreteId)
+    .eq('user_id', userId);
+  
+  if (error) {
+    console.error('❌ Erro ao deletar lembrete:', error);
+    return false;
+  }
+  
+  console.log('✅ Lembrete deletado!');
+  return true;
+}
+
+async function marcarLembreteConcluido(lembreteId, userId) {
+  return await updateLembrete(lembreteId, userId, { status: 'concluido' });
+}
+
+async function getLembretesPendentes(dataLimite = null) {
+  console.log('🔍 Buscando lembretes pendentes para notificação...');
+  
+  let query = supabase
+    .from('lembretes')
+    .select('*, users!inner(name, email, phone)')
+    .eq('status', 'pendente')
+    .eq('notificar_whatsapp', true);
+  
+  if (dataLimite) {
+    query = query.lte('data_vencimento', dataLimite);
+  }
+  
+  const { data, error } = await query;
+  
+  if (error) {
+    console.error('❌ Erro ao buscar lembretes pendentes:', error);
+    return [];
+  }
+  
+  return data.map(l => ({
+    ...l,
+    user_name: l.users.name,
+    user_email: l.users.email,
+    user_phone: l.users.phone
+  }));
+}
+
+async function marcarLembreteNotificado(lembreteId) {
+  const { error } = await supabase
+    .from('lembretes')
+    .update({ ultima_notificacao: new Date().toISOString() })
+    .eq('id', lembreteId);
+  
+  return !error;
+}
+
+async function getLembretesVencidos(userId) {
+  const { data, error } = await supabase
+    .from('lembretes')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'pendente')
+    .lt('data_vencimento', new Date().toISOString())
+    .order('data_vencimento', { ascending: false });
+  
+  if (error) return [];
+  return data;
+}
+
 // ================== PAGAMENTOS ==================
 
 async function createPayment(userId, plan, amount) {
@@ -613,6 +769,16 @@ module.exports = {
   getPaymentById,
   createSubscription,
   getActiveSubscription,
+  // Lembretes
+  createLembrete,
+  getLembretes,
+  getLembreteById,
+  updateLembrete,
+  deleteLembrete,
+  marcarLembreteConcluido,
+  getLembretesPendentes,
+  marcarLembreteNotificado,
+  getLembretesVencidos,
   getSupabaseClient
 };
 

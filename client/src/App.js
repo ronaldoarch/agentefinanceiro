@@ -7,6 +7,7 @@ import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import Transacoes from './components/Transacoes';
 import Alertas from './components/Alertas';
+import Lembretes from './components/Lembretes';
 import Header from './components/Header';
 import WhatsAppControl from './components/WhatsAppControl';
 import Chat from './components/Chat';
@@ -178,6 +179,10 @@ function MainApp() {
             alertas={alertas} 
             marcarLido={marcarAlertaLido}
           />
+        )}
+
+        {activeTab === 'lembretes' && (
+          <Lembretes />
         )}
 
         {activeTab === 'whatsapp' && (

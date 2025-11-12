@@ -11,6 +11,7 @@ const db = require('./services/database-supabase');
 const openaiService = require('./services/openai');
 const authService = require('./services/auth');
 const abacatepayService = require('./services/abacatepay');
+const lembretesScheduler = require('./services/lembretes-scheduler');
 const { requireAuth, requireAdmin, checkPlanLimit } = require('./middleware/auth');
 const WebSocket = require('ws');
 
@@ -56,12 +57,18 @@ async function startServer() {
       console.error('Erro ao criar admin:', err);
     });
 
+    // Iniciar scheduler de lembretes (verifica a cada 30 minutos)
+    console.log('🔔 Iniciando scheduler de lembretes...');
+    lembretesScheduler.start(30); // 30 minutos
+    console.log('✅ Scheduler de lembretes iniciado!');
+
     // Criar servidor WebSocket para atualizações em tempo real
     const server = app.listen(PORT, () => {
       console.log(`🚀 Servidor rodando na porta ${PORT}`);
       console.log(`📱 Aguardando conexão com WhatsApp...`);
       console.log('✅ Sistema totalmente operacional!');
       console.log('🔒 Banco de dados PostgreSQL na nuvem!');
+      console.log('📅 Lembretes automáticos ativos!');
     });
 
     return server;
@@ -815,6 +822,153 @@ app.get('/api/categorias', async (req, res) => {
     const categorias = await db.getCategorias();
     res.json(categorias);
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ================== ROTAS DE LEMBRETES ==================
+
+// Criar novo lembrete
+app.post('/api/lembretes', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { 
+      titulo, 
+      descricao, 
+      valor, 
+      categoria, 
+      dataVencimento, 
+      recorrencia, 
+      notificarWhatsApp, 
+      diasAntecedencia 
+    } = req.body;
+
+    if (!titulo || !dataVencimento) {
+      return res.status(400).json({ error: 'Título e data de vencimento são obrigatórios' });
+    }
+
+    const lembreteId = await db.createLembrete(
+      userId,
+      titulo,
+      descricao,
+      valor,
+      categoria || 'outros',
+      dataVencimento,
+      recorrencia || 'unico',
+      notificarWhatsApp !== false, // default true
+      diasAntecedencia || 1
+    );
+
+    res.json({ 
+      success: true, 
+      id: lembreteId,
+      message: 'Lembrete criado com sucesso!' 
+    });
+  } catch (error) {
+    console.error('❌ Erro ao criar lembrete:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obter todos os lembretes do usuário
+app.get('/api/lembretes', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { status } = req.query; // filtrar por status (opcional)
+    
+    const lembretes = await db.getLembretes(userId, status);
+    res.json(lembretes);
+  } catch (error) {
+    console.error('❌ Erro ao buscar lembretes:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obter lembretes vencidos
+app.get('/api/lembretes/vencidos', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const lembretes = await db.getLembretesVencidos(userId);
+    res.json(lembretes);
+  } catch (error) {
+    console.error('❌ Erro ao buscar lembretes vencidos:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obter um lembrete específico
+app.get('/api/lembretes/:id', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    
+    const lembrete = await db.getLembreteById(id, userId);
+    
+    if (!lembrete) {
+      return res.status(404).json({ error: 'Lembrete não encontrado' });
+    }
+    
+    res.json(lembrete);
+  } catch (error) {
+    console.error('❌ Erro ao buscar lembrete:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Atualizar lembrete
+app.put('/api/lembretes/:id', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const updates = req.body;
+    
+    const success = await db.updateLembrete(id, userId, updates);
+    
+    if (!success) {
+      return res.status(404).json({ error: 'Lembrete não encontrado ou você não tem permissão' });
+    }
+    
+    res.json({ success: true, message: 'Lembrete atualizado com sucesso!' });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar lembrete:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Marcar lembrete como concluído
+app.put('/api/lembretes/:id/concluir', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    
+    const success = await db.marcarLembreteConcluido(id, userId);
+    
+    if (!success) {
+      return res.status(404).json({ error: 'Lembrete não encontrado ou você não tem permissão' });
+    }
+    
+    res.json({ success: true, message: 'Lembrete marcado como concluído!' });
+  } catch (error) {
+    console.error('❌ Erro ao marcar lembrete como concluído:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Deletar lembrete
+app.delete('/api/lembretes/:id', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    
+    const success = await db.deleteLembrete(id, userId);
+    
+    if (!success) {
+      return res.status(404).json({ error: 'Lembrete não encontrado ou você não tem permissão' });
+    }
+    
+    res.json({ success: true, message: 'Lembrete deletado com sucesso!' });
+  } catch (error) {
+    console.error('❌ Erro ao deletar lembrete:', error);
     res.status(500).json({ error: error.message });
   }
 });

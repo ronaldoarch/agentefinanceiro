@@ -59,6 +59,12 @@ function Header({ whatsappStatus, activeTab, setActiveTab }) {
             🔔 Alertas
           </button>
           <button 
+            className={`nav-tab ${activeTab === 'lembretes' ? 'active' : ''}`}
+            onClick={() => setActiveTab('lembretes')}
+          >
+            📅 Lembretes
+          </button>
+          <button 
             className={`nav-tab ${activeTab === 'whatsapp' ? 'active' : ''}`}
             onClick={() => setActiveTab('whatsapp')}
           >
