@@ -328,22 +328,146 @@
   background: #999;
 }
 
+@media (max-width: 1024px) {
+  .chat-container {
+    max-width: 100%;
+    margin: 0;
+  }
+}
+
 @media (max-width: 768px) {
   .chat-container {
-    height: calc(100vh - 100px);
-    border-radius: 0;
+    height: calc(100vh - 120px);
+    border-radius: 8px;
+    margin: 0 10px;
+  }
+
+  .chat-header {
+    padding: 15px;
+  }
+
+  .chat-header h2 {
+    font-size: 1.3rem;
+  }
+
+  .clear-button {
+    font-size: 0.85rem;
+    padding: 6px 12px;
+  }
+
+  .chat-messages {
+    padding: 15px;
   }
 
   .message-content {
-    max-width: 85%;
+    max-width: 80%;
+  }
+
+  .message-bubble {
+    padding: 10px 14px;
+    font-size: 0.95rem;
+  }
+
+  .message-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+  }
+
+  .chat-input-container {
+    padding: 15px;
   }
 
   .chat-input-wrapper {
-    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .chat-input {
+    font-size: 0.95rem;
+    padding: 10px 16px;
+  }
+
+  .chat-button {
+    width: 44px;
+    height: 44px;
+    font-size: 1.2rem;
   }
 
   .suggestions {
     flex-direction: column;
+    gap: 10px;
+  }
+
+  .suggestion-chip {
+    width: 100%;
+    text-align: center;
+    padding: 10px 16px;
+  }
+
+  .empty-chat {
+    padding: 20px;
+  }
+
+  .empty-chat-icon {
+    font-size: 3rem;
+  }
+
+  .empty-chat h3 {
+    font-size: 1.2rem;
+  }
+
+  .empty-chat p {
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .chat-container {
+    height: calc(100vh - 100px);
+    border-radius: 0;
+    margin: 0;
+  }
+
+  .chat-header {
+    padding: 12px;
+  }
+
+  .chat-header h2 {
+    font-size: 1.1rem;
+  }
+
+  .chat-messages {
+    padding: 10px;
+  }
+
+  .message-content {
+    max-width: 75%;
+  }
+
+  .message-bubble {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+
+  .message-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+  }
+
+  .chat-input-container {
+    padding: 10px;
+  }
+
+  .chat-input {
+    font-size: 0.9rem;
+    padding: 8px 14px;
+  }
+
+  .chat-button {
+    width: 40px;
+    height: 40px;
+    font-size: 1.1rem;
   }
 }
 

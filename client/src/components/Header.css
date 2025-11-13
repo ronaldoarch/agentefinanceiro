@@ -198,43 +198,94 @@
   box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
 }
 
+@media (max-width: 1024px) {
+  .header-content {
+    padding: 0 15px;
+  }
+  
+  .nav-tab {
+    padding: 10px 16px;
+    font-size: 15px;
+  }
+}
+
 @media (max-width: 768px) {
+  .header {
+    padding: 15px 0;
+    margin-bottom: 15px;
+  }
+
   .header-content {
     flex-direction: column;
     align-items: flex-start;
+    gap: 15px;
+    padding: 0 10px;
   }
 
   .header-left h1 {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   .header-info {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
     width: 100%;
+    gap: 10px;
   }
 
   .nav-tabs {
     width: 100%;
     flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
   }
 
   .nav-tab {
-    flex: 1;
-    min-width: 100px;
+    flex: 1 1 calc(50% - 4px);
+    min-width: 120px;
+    max-width: 180px;
     font-size: 14px;
-    padding: 10px 16px;
+    padding: 10px 12px;
+    text-align: center;
   }
 
   .header-actions {
     width: 100%;
-    justify-content: flex-end;
+    justify-content: center;
+    flex-wrap: wrap;
   }
 
+  .btn-upgrade,
   .btn-admin,
   .btn-logout {
     font-size: 13px;
     padding: 8px 16px;
+  }
+
+  .user-info {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-left h1 {
+    font-size: 20px;
+  }
+
+  .nav-tab {
+    flex: 1 1 100%;
+    max-width: 100%;
+    font-size: 13px;
+    padding: 10px;
+  }
+
+  .header-info {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .user-name, .user-plan {
+    font-size: 12px;
   }
 }
 

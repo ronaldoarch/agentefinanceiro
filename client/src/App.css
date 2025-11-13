@@ -73,17 +73,50 @@
 }
 
 /* Responsivo */
+@media (max-width: 1024px) {
+  .container {
+    padding: 15px;
+  }
+}
+
 @media (max-width: 768px) {
+  .App {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-attachment: fixed;
+  }
+
   .container {
     padding: 10px;
+    max-width: 100%;
   }
 
   .grid {
     grid-template-columns: 1fr;
+    gap: 15px;
   }
 
   .card {
     padding: 16px;
+    border-radius: 12px;
+  }
+  
+  .card-title {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 8px;
+  }
+
+  .card {
+    padding: 12px;
+    border-radius: 10px;
+  }
+  
+  .card-title {
+    font-size: 16px;
   }
 }
 

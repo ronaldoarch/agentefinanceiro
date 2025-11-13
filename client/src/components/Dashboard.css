@@ -465,6 +465,10 @@
   .grid-4 {
     grid-template-columns: repeat(2, 1fr);
   }
+  
+  .charts-grid {
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  }
 }
 
 @media (max-width: 1200px) {
@@ -476,54 +480,80 @@
 @media (max-width: 768px) {
   .grid-4 {
     grid-template-columns: 1fr;
+    gap: 15px;
   }
 
   .charts-grid {
     grid-template-columns: 1fr;
+    gap: 15px;
   }
 
   .bottom-grid {
     grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .summary-card {
+    padding: 20px;
   }
 
   .summary-icon {
-    font-size: 36px;
-    width: 60px;
-    height: 60px;
+    font-size: 32px;
+    width: 56px;
+    height: 56px;
   }
 
   .summary-value {
-    font-size: 22px;
+    font-size: 24px;
+  }
+  
+  .summary-label {
+    font-size: 13px;
   }
 
   .dias-filtro {
     flex-wrap: wrap;
+    justify-content: center;
   }
 
   .btn-filtro {
-    flex: 1;
-    min-width: 80px;
+    flex: 1 1 calc(33.333% - 6px);
+    min-width: 70px;
+    padding: 8px 12px;
+    font-size: 12px;
   }
 
   .transaction-item {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
+    padding: 14px;
+  }
+
+  .transaction-left {
+    width: 100%;
   }
 
   .transaction-value {
     align-self: flex-end;
+    font-size: 20px;
   }
 
   .lembrete-item {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
+    padding: 14px;
+  }
+
+  .lembrete-left {
+    width: 100%;
   }
 
   .lembrete-valor {
     align-self: flex-end;
     margin-left: 0;
+    font-size: 20px;
   }
 
   .card-header-with-filter {
@@ -534,6 +564,60 @@
 
   .mes-filtro {
     width: 100%;
+    text-align: center;
+  }
+  
+  .total-a-pagar {
+    padding: 14px;
+  }
+  
+  .total-valor {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .summary-card {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .summary-icon {
+    font-size: 28px;
+    width: 48px;
+    height: 48px;
+  }
+
+  .summary-value {
+    font-size: 20px;
+  }
+  
+  .summary-label {
+    font-size: 12px;
+  }
+  
+  .transaction-icon,
+  .lembrete-icon {
+    font-size: 20px;
+    width: 40px;
+    height: 40px;
+  }
+  
+  .transaction-desc,
+  .lembrete-titulo {
+    font-size: 14px;
+  }
+  
+  .transaction-meta,
+  .lembrete-meta {
+    font-size: 11px;
+  }
+  
+  .btn-filtro {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 60px;
+    padding: 6px 8px;
+    font-size: 11px;
   }
 }
 
