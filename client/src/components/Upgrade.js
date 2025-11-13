@@ -9,6 +9,7 @@ function Upgrade({ onClose, onPlanChanged }) {
   const [showQRCode, setShowQRCode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [paymentId, setPaymentId] = useState(null);
+  const [pollingAttempts, setPollingAttempts] = useState(0);
   const { user, refreshUser } = useAuth();
 
   const plans = {
@@ -96,30 +97,60 @@ function Upgrade({ onClose, onPlanChanged }) {
   // Verificar status do pagamento automaticamente
   function startPaymentPolling(paymentId) {
     let attempts = 0;
-    const maxAttempts = 60; // 60 tentativas = 3 minutos
+    const maxAttempts = 120; // 120 tentativas = 6 minutos
+    
+    console.log('🔄 Iniciando verificação automática de pagamento...');
+    console.log('📋 Payment ID:', paymentId);
+    console.log('⏱️ Verificando a cada 3 segundos por até 6 minutos');
     
     const interval = setInterval(async () => {
       attempts++;
+      setPollingAttempts(attempts); // Atualizar UI
+      console.log(`🔍 Verificação ${attempts}/${maxAttempts} - Checando status do pagamento...`);
       
       try {
         const response = await axios.get(`/api/payments/${paymentId}/status`);
+        console.log('📊 Status atual:', response.data.status);
         
         if (response.data.status === 'paid') {
           clearInterval(interval);
-          // Redirecionar para página de sucesso
-          window.location.href = '/payment/success?plan=' + response.data.plan;
+          console.log('✅ PAGAMENTO CONFIRMADO!');
+          console.log('🎉 Plano aprovado:', response.data.plan);
+          
+          // Salvar plano no localStorage antes de redirecionar
+          localStorage.setItem('user_plan', response.data.plan);
+          localStorage.setItem('user_plan_updated_at', new Date().toISOString());
+          
+          // Fechar modal antes de redirecionar
+          setShowQRCode(false);
+          
+          // Pequeno delay para garantir que tudo foi salvo
+          setTimeout(() => {
+            console.log('🔄 Redirecionando para página de sucesso...');
+            // Redirecionar para página de sucesso com plano correto
+            window.location.href = '/payment/success?plan=' + response.data.plan;
+          }, 500);
         }
         
         // Parar após número máximo de tentativas
         if (attempts >= maxAttempts) {
           clearInterval(interval);
-          console.log('⏰ Timeout: parou de verificar pagamento após 3 minutos');
+          console.log('⏰ Timeout: parou de verificar pagamento após 6 minutos');
+          console.log('ℹ️ Você pode fechar esta tela e voltar ao painel.');
+          console.log('ℹ️ Seu plano será atualizado automaticamente assim que o pagamento for confirmado.');
         }
         
       } catch (error) {
-        console.error('Erro ao verificar status:', error);
+        console.error('❌ Erro ao verificar status:', error);
+        // Não parar o polling por causa de um erro - pode ser temporário
       }
     }, 3000); // A cada 3 segundos
+    
+    // Retornar função de cleanup para parar polling se modal for fechado
+    return () => {
+      clearInterval(interval);
+      console.log('🛑 Polling de pagamento parado');
+    };
   }
 
   // FUNÇÃO DE TESTE: Simular pagamento aprovado
@@ -246,10 +277,23 @@ function Upgrade({ onClose, onPlanChanged }) {
                 <div className="status-pending">
                   <div className="spinner"></div>
                   <p><strong>Aguardando confirmação do pagamento...</strong></p>
+                  {pollingAttempts > 0 && (
+                    <p style={{ fontSize: '0.9rem', color: '#666', marginTop: '10px' }}>
+                      🔄 Verificação #{pollingAttempts} - Checando automaticamente...
+                    </p>
+                  )}
                 </div>
                 <p className="status-info">
                   ✨ Seu plano será ativado <strong>automaticamente</strong> após a confirmação do PIX.<br/>
-                  ⏱️ Geralmente leva apenas alguns segundos!
+                  ⏱️ Geralmente leva apenas alguns segundos!<br/>
+                  {pollingAttempts > 40 && (
+                    <>
+                      <br/>
+                      <span style={{ color: '#ff9800' }}>
+                        ⚠️ Ainda aguardando confirmação... O processo pode levar alguns minutos.
+                      </span>
+                    </>
+                  )}
                 </p>
               </div>
             </div>

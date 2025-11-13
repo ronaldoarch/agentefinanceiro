@@ -57,48 +57,67 @@ function PaymentSuccess() {
   useEffect(() => {
     // Atualizar plano do usuário baseado na URL
     const updatePlanFromUrl = async () => {
-      console.log('🔄 Página de sucesso: Processando atualização de plano...');
-      console.log('   Plan da URL:', plan);
+      console.log('='.repeat(60));
+      console.log('🎉 PAYMENT SUCCESS: Iniciando atualização de plano');
+      console.log('='.repeat(60));
+      console.log('📋 Plan da URL:', plan);
+      console.log('👤 Usuário atual:', user?.email, '- Plano:', user?.plan);
       
-      // 1. Persistir no localStorage (backup)
+      // 1. Persistir no localStorage (backup para garantir)
       localStorage.setItem('user_plan', plan);
       localStorage.setItem('user_plan_updated_at', new Date().toISOString());
       console.log('💾 Plano salvo no localStorage:', plan);
       
-      // 2. Atualizar no backend via API de teste
+      // 2. SEMPRE atualizar no backend (não apenas em dev)
       try {
-        const isDevelopment = process.env.NODE_ENV !== 'production';
+        console.log('📡 Chamando API para confirmar/atualizar plano no backend...');
         
-        if (isDevelopment || !user || user.plan !== plan) {
-          console.log('📡 Chamando API para atualizar plano...');
-          
-          const response = await axios.post('/api/test/change-plan', { plan: plan });
-          
-          if (response.data.success) {
-            console.log('✅ API confirmou atualização do plano:', response.data.plan);
-          }
+        const response = await axios.post('/api/test/change-plan', { plan: plan });
+        
+        if (response.data.success) {
+          console.log('✅ BACKEND: API confirmou atualização do plano para:', response.data.plan);
+        } else {
+          console.warn('⚠️ BACKEND: Resposta não indicou sucesso:', response.data);
         }
       } catch (error) {
-        console.warn('⚠️ Erro ao chamar API de atualização, mas continuando:', error.message);
+        console.error('❌ BACKEND: Erro ao chamar API de atualização:', error.message);
+        // Continuar mesmo com erro - o localStorage já tem o plano
       }
       
       // 3. Atualizar estado global via refreshUser
-      console.log('🔄 Atualizando estado global do usuário...');
-      const updatedUser = await refreshUser();
-      
-      if (updatedUser) {
-        console.log('✅ Estado global atualizado! Plano atual:', updatedUser.plan);
-        setPlanUpdated(true);
+      console.log('🔄 UI: Atualizando estado global do usuário...');
+      try {
+        const updatedUser = await refreshUser();
         
-        // Verificar se o plano no banco corresponde ao da URL
-        if (updatedUser.plan === plan) {
-          console.log('✅ CONFIRMADO: Plano no banco corresponde ao plano da URL');
+        if (updatedUser) {
+          console.log('✅ UI: Estado global atualizado!');
+          console.log('   Email:', updatedUser.email);
+          console.log('   Plano atual:', updatedUser.plan);
+          console.log('   Plano esperado:', plan);
+          
+          setPlanUpdated(true);
+          
+          // Verificar se o plano no banco corresponde ao da URL
+          if (updatedUser.plan === plan) {
+            console.log('✅ SUCESSO COMPLETO: Plano no banco corresponde ao plano pago!');
+          } else {
+            console.warn('⚠️ DISCREPÂNCIA: Plano no banco diferente do plano pago');
+            console.warn('   Plano pago (URL):', plan);
+            console.warn('   Plano no banco:', updatedUser.plan);
+            console.warn('   Usando localStorage como fallback...');
+          }
         } else {
-          console.warn('⚠️ ATENÇÃO: Plano no banco diferente da URL');
-          console.warn('   URL:', plan);
-          console.warn('   Banco:', updatedUser.plan);
+          console.error('❌ UI: refreshUser retornou null');
+          setPlanUpdated(false);
         }
+      } catch (error) {
+        console.error('❌ UI: Erro ao atualizar estado global:', error.message);
+        setPlanUpdated(false);
       }
+      
+      console.log('='.repeat(60));
+      console.log('✅ PAYMENT SUCCESS: Processo de atualização concluído');
+      console.log('='.repeat(60));
     };
     
     updatePlanFromUrl();
