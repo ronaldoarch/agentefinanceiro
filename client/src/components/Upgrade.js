@@ -287,42 +287,91 @@ function Upgrade({ onClose, onPlanChanged }) {
     }
   }
   
-  // Função para verificar manualmente
+  // Função para ATIVAR o plano instantaneamente (modo teste)
   async function handleManualCheck() {
-    if (!paymentId) return;
+    console.log('='.repeat(60));
+    console.log('✅ ATIVAÇÃO INSTANTÂNEA: Usuário clicou em Ativar Plano Agora');
+    console.log('='.repeat(60));
+    console.log('📋 Payment ID:', paymentId);
+    console.log('💰 Plano selecionado pelo usuário:', selectedPlan);
+    console.log('💵 Valor:', plans[selectedPlan].price);
+    
+    // Confirmar com o usuário
+    const planName = plans[selectedPlan].name;
+    const planPrice = plans[selectedPlan].price.toFixed(2);
+    
+    if (!window.confirm(`✅ ATIVAR PLANO ${planName.toUpperCase()}?\n\n💰 Valor: R$ ${planPrice}\n\n🧪 MODO TESTE - Ativação instantânea\n\nSeu plano será atualizado imediatamente sem verificação de pagamento real.\n\nDeseja continuar?`)) {
+      console.log('❌ Usuário cancelou ativação');
+      return;
+    }
     
     setLoading(true);
-    console.log('🔍 Verificação manual do pagamento...');
     
     try {
-      const response = await axios.get(`/api/payments/${paymentId}/status`);
+      // MODO TESTE: Ativar o plano diretamente
+      console.log('🧪 MODO TESTE: Ativando plano escolhido diretamente');
+      console.log('   Plano escolhido:', selectedPlan);
+      console.log('   Nome:', planName);
       
-      if (response.data.status === 'paid') {
-        console.log('✅ Pagamento encontrado!');
+      // Parar polling
+      if (pollingIntervalRef) {
+        clearInterval(pollingIntervalRef);
+        setPollingIntervalRef(null);
+        console.log('🛑 Polling automático parado');
+      }
+      
+      // Ativar o plano ESCOLHIDO PELO USUÁRIO via API de teste
+      console.log('📡 Enviando requisição para ativar plano:', selectedPlan);
+      const response = await axios.post('/api/test/change-plan', { plan: selectedPlan });
+      
+      console.log('📊 Resposta da API:', response.data);
+      
+      if (response.data.success) {
+        console.log('='.repeat(60));
+        console.log('✅✅✅ PLANO ATIVADO COM SUCESSO! ✅✅✅');
+        console.log('='.repeat(60));
+        console.log('🎉 Plano ativado:', response.data.plan);
+        console.log('📋 Plano esperado:', selectedPlan);
+        console.log('✅ Correspondência:', response.data.plan === selectedPlan ? 'SIM' : 'NÃO');
         
-        // Parar polling
-        if (pollingIntervalRef) {
-          clearInterval(pollingIntervalRef);
-          setPollingIntervalRef(null);
-        }
-        
-        const planAprovado = response.data.plan;
-        localStorage.setItem('user_plan', planAprovado);
+        // Salvar no localStorage
+        localStorage.setItem('user_plan', selectedPlan);
         localStorage.setItem('user_plan_updated_at', new Date().toISOString());
+        console.log('💾 Plano salvo no localStorage:', selectedPlan);
         
-        await refreshUser();
+        // Atualizar contexto do usuário
+        console.log('🔄 Atualizando contexto do usuário...');
+        const updatedUser = await refreshUser();
+        console.log('✅ Contexto atualizado!');
+        console.log('   Plano no contexto:', updatedUser?.plan);
         
+        // Fechar modal
         setShowQRCode(false);
         
+        // Mostrar mensagem de sucesso antes de redirecionar
+        alert(`🎉 PLANO ATIVADO COM SUCESSO!\n\n${planName} está ativo agora!\n\nVocê será redirecionado para a página de confirmação.`);
+        
+        // Redirecionar para página de sucesso
         setTimeout(() => {
-          window.location.href = '/payment/success?plan=' + planAprovado + '&amount=' + plans[selectedPlan].price.toFixed(2);
+          console.log('🔄 Redirecionando para /payment/success...');
+          console.log('   Plano:', selectedPlan);
+          console.log('   Valor:', planPrice);
+          window.location.href = '/payment/success?plan=' + selectedPlan + '&amount=' + planPrice;
         }, 500);
       } else {
-        alert(`ℹ️ Pagamento ainda não confirmado.\n\nStatus: ${response.data.status}\n\nAguarde mais alguns segundos após pagar.`);
+        console.error('❌ API não retornou sucesso:', response.data);
+        throw new Error('API não confirmou ativação do plano');
       }
     } catch (error) {
-      console.error('❌ Erro na verificação manual:', error);
-      alert('❌ Erro ao verificar: ' + error.message);
+      console.error('='.repeat(60));
+      console.error('❌ ERRO CRÍTICO ao ativar plano!');
+      console.error('❌ Mensagem:', error.message);
+      console.error('❌ Resposta:', error.response?.data);
+      console.error('❌ Stack:', error.stack);
+      console.error('='.repeat(60));
+      
+      const errorMsg = error.response?.data?.error || error.message || 'Erro desconhecido';
+      alert(`❌ Erro ao ativar plano ${planName}:\n\n${errorMsg}\n\nPlano selecionado: ${selectedPlan}\nValor: R$ ${planPrice}\n\nPor favor, tente novamente.`);
     } finally {
       setLoading(false);
     }
@@ -496,14 +545,21 @@ function Upgrade({ onClose, onPlanChanged }) {
                 onClick={handleManualCheck}
                 disabled={loading}
                 style={{
-                  padding: '12px 20px',
-                  borderRadius: '8px',
-                  fontSize: '0.95rem',
+                  padding: '14px 25px',
+                  borderRadius: '10px',
+                  fontSize: '1rem',
+                  fontWeight: '600',
                   cursor: loading ? 'not-allowed' : 'pointer',
-                  opacity: loading ? 0.7 : 1
+                  opacity: loading ? 0.7 : 1,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  border: 'none',
+                  boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                  transition: 'all 0.3s'
                 }}
+                title="Ativar plano instantaneamente (modo teste)"
               >
-                {loading ? '⏳ Verificando...' : '🔍 Já Fiz o Pagamento'}
+                {loading ? '⏳ Ativando Plano...' : '✅ Ativar Plano Agora'}
               </button>
               
               {process.env.NODE_ENV !== 'production' && (
