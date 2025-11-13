@@ -9,6 +9,14 @@
   z-index: 100;
 }
 
+/* Remove sticky em tablets e mobile para não atrapalhar visualização */
+@media (max-width: 1024px) {
+  .header {
+    position: relative;
+    top: auto;
+  }
+}
+
 .header-content {
   max-width: 1400px;
   margin: 0 auto;
