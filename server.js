@@ -12,6 +12,7 @@ const openaiService = require('./services/openai');
 const authService = require('./services/auth');
 const abacatepayService = require('./services/abacatepay');
 const lembretesScheduler = require('./services/lembretes-scheduler');
+const googleCalendarService = require('./services/google-calendar');
 const { requireAuth, requireAdmin, checkPlanLimit } = require('./middleware/auth');
 const WebSocket = require('ws');
 
@@ -894,10 +895,37 @@ app.post('/api/lembretes', requireAuth, async (req, res) => {
       diasAntecedencia || 1
     );
 
+    // Tentar criar evento no Google Calendar se estiver conectado
+    let googleEventCreated = false;
+    try {
+      const isConnected = await googleCalendarService.isConnected(userId);
+      
+      if (isConnected) {
+        console.log('📅 Usuário conectado ao Google Calendar, criando evento...');
+        
+        const googleEvent = await googleCalendarService.createCalendarEvent(userId, {
+          titulo,
+          descricao,
+          valor,
+          dataVencimento,
+          diasAntecedencia
+        });
+        
+        if (googleEvent.success) {
+          googleEventCreated = true;
+          console.log('✅ Evento criado no Google Calendar!');
+        }
+      }
+    } catch (googleError) {
+      console.error('⚠️ Erro ao criar evento no Google Calendar:', googleError.message);
+      // Não falha a criação do lembrete se o Google Calendar falhar
+    }
+
     res.json({ 
       success: true, 
       id: lembreteId,
-      message: 'Lembrete criado com sucesso!' 
+      message: 'Lembrete criado com sucesso!',
+      googleEventCreated
     });
   } catch (error) {
     console.error('❌ Erro ao criar lembrete:', error);
@@ -1004,6 +1032,73 @@ app.delete('/api/lembretes/:id', requireAuth, async (req, res) => {
     res.json({ success: true, message: 'Lembrete deletado com sucesso!' });
   } catch (error) {
     console.error('❌ Erro ao deletar lembrete:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ================== ROTAS DE GOOGLE CALENDAR ==================
+
+// Obter URL de autorização do Google
+app.get('/api/google/auth-url', requireAuth, (req, res) => {
+  try {
+    const authUrl = googleCalendarService.getAuthUrl();
+    res.json({ authUrl });
+  } catch (error) {
+    console.error('❌ Erro ao gerar URL de autorização:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Callback do OAuth (recebe o código de autorização)
+app.get('/api/google/callback', async (req, res) => {
+  try {
+    const { code, state } = req.query; // state contém o userId
+    
+    if (!code) {
+      return res.status(400).send('Código de autorização não fornecido');
+    }
+
+    // Trocar código por tokens
+    const tokens = await googleCalendarService.getTokensFromCode(code);
+    
+    // Salvar tokens no banco (userId vem do state ou da sessão)
+    const userId = state; // Você pode passar o userId no state
+    await googleCalendarService.saveUserTokens(userId, tokens);
+
+    // Redirecionar para o frontend com sucesso
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/?google_connected=true`);
+  } catch (error) {
+    console.error('❌ Erro no callback do Google:', error);
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/?google_error=true`);
+  }
+});
+
+// Verificar se está conectado ao Google Calendar
+app.get('/api/google/status', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const connected = await googleCalendarService.isConnected(userId);
+    
+    let email = null;
+    if (connected) {
+      email = await googleCalendarService.getConnectedEmail(userId);
+    }
+
+    res.json({ connected, email });
+  } catch (error) {
+    console.error('❌ Erro ao verificar status:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Desconectar Google Calendar
+app.post('/api/google/disconnect', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    await googleCalendarService.disconnectGoogleCalendar(userId);
+    res.json({ success: true, message: 'Google Calendar desconectado com sucesso!' });
+  } catch (error) {
+    console.error('❌ Erro ao desconectar:', error);
     res.status(500).json({ error: error.message });
   }
 });

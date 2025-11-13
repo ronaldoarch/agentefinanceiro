@@ -1,0 +1,232 @@
+.integracoes-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.integracoes-header {
+  margin-bottom: 40px;
+}
+
+.integracoes-header h2 {
+  margin: 0 0 10px 0;
+  color: #2c3e50;
+  font-size: 32px;
+}
+
+.integracoes-subtitle {
+  color: #666;
+  font-size: 16px;
+  margin: 0;
+}
+
+/* Cards de Integração */
+.integracao-card {
+  background: white;
+  border-radius: 16px;
+  padding: 30px;
+  margin-bottom: 20px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+  display: flex;
+  gap: 25px;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.integracao-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.integracao-card.google-calendar {
+  border-color: #4285f4;
+}
+
+.integracao-card.em-breve {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.integracao-card.em-breve:hover {
+  transform: none;
+}
+
+.integracao-icon {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  border-radius: 16px;
+  font-size: 48px;
+}
+
+.service-logo {
+  width: 60px;
+  height: 60px;
+}
+
+.integracao-content {
+  flex: 1;
+}
+
+.integracao-content h3 {
+  margin: 0 0 10px 0;
+  color: #2c3e50;
+  font-size: 22px;
+}
+
+.integracao-descricao {
+  color: #666;
+  font-size: 15px;
+  margin: 0 0 20px 0;
+  line-height: 1.6;
+}
+
+.integracao-recursos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  margin-bottom: 25px;
+}
+
+.recurso-item {
+  color: #22c55e;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Status */
+.status-loading {
+  color: #667eea;
+  font-size: 16px;
+  padding: 15px 0;
+}
+
+.status-conectado {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.status-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.status-badge {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.status-badge.conectado {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.status-badge.desconectado {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.status-email {
+  color: #666;
+  font-size: 14px;
+}
+
+.status-acoes {
+  display: flex;
+  gap: 10px;
+}
+
+.status-desconectado {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+/* Botões */
+.btn-conectar {
+  background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+  color: white;
+  border: none;
+  padding: 14px 28px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(66, 133, 244, 0.3);
+}
+
+.btn-conectar:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(66, 133, 244, 0.4);
+}
+
+.btn-desconectar {
+  background: #f0f0f0;
+  color: #666;
+  border: 2px solid #e0e0e0;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-desconectar:hover {
+  background: #fee2e2;
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+/* Em Breve */
+.em-breve-badge {
+  background: #fef3c7;
+  color: #d97706;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-block;
+  margin-top: 15px;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .integracao-card {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .integracao-icon {
+    margin: 0 auto;
+  }
+
+  .status-conectado,
+  .status-desconectado {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn-conectar,
+  .btn-desconectar {
+    width: 100%;
+  }
+
+  .integracao-recursos {
+    grid-template-columns: 1fr;
+  }
+}
+
