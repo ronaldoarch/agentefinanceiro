@@ -345,80 +345,99 @@ app.get('/api/payments/my', requireAuth, async (req, res) => {
   }
 });
 
-// ENDPOINT DE TESTE: Mudar plano diretamente (apenas em desenvolvimento)
+// ENDPOINT: Mudar plano diretamente (funciona em desenvolvimento E produção)
 app.post('/api/test/change-plan', requireAuth, async (req, res) => {
   try {
     const { plan } = req.body;
     const userId = req.user.id;
     
-    // Apenas permitir em desenvolvimento
-    const isDevelopment = process.env.NODE_ENV !== 'production';
-    
-    if (!isDevelopment) {
-      return res.status(403).json({ 
-        error: 'Endpoint de teste disponível apenas em desenvolvimento' 
-      });
-    }
+    console.log('='.repeat(60));
+    console.log('🔄 API /api/test/change-plan: Requisição recebida');
+    console.log('='.repeat(60));
+    console.log('👤 User ID:', userId);
+    console.log('📋 Plano solicitado:', plan);
+    console.log('🌍 Ambiente:', process.env.NODE_ENV || 'development');
+    console.log('📧 Email do usuário:', req.user.email);
     
     // Validar plano
     const validPlans = ['basico', 'premium', 'enterprise'];
     if (!validPlans.includes(plan)) {
+      console.error('❌ Plano inválido recebido:', plan);
       return res.status(400).json({ error: 'Plano inválido' });
     }
     
-    console.log(`🧪 TESTE: Mudando plano do usuário ${userId} para: ${plan}`);
+    console.log(`✅ Plano válido! Mudando plano do usuário ${userId} (${req.user.email}) para: ${plan}`);
     
-    // Atualizar plano do usuário
+    // Atualizar plano do usuário no banco
+    console.log('📡 Atualizando plano no banco de dados...');
     await db.updateUserPlan(userId, plan);
+    console.log('✅ Plano atualizado no banco!');
     
-    // Criar/atualizar assinatura de teste (30 dias)
+    // Criar/atualizar assinatura (30 dias)
+    console.log('📅 Criando assinatura de 30 dias...');
     const expiresAt = moment().add(30, 'days').toISOString();
     await db.createSubscription(userId, plan, expiresAt);
+    console.log('✅ Assinatura criada!');
     
-    console.log(`✅ TESTE: Plano alterado com sucesso para: ${plan}`);
+    console.log('='.repeat(60));
+    console.log(`✅✅✅ PLANO ALTERADO COM SUCESSO! ✅✅✅`);
+    console.log('='.repeat(60));
+    console.log('📋 Plano novo:', plan);
+    console.log('📅 Expira em:', expiresAt);
+    console.log('='.repeat(60));
     
     res.json({
       success: true,
       message: `✅ Plano alterado para ${plan.toUpperCase()} com sucesso!`,
       plan: plan,
-      test_mode: true
+      test_mode: process.env.NODE_ENV !== 'production',
+      expires_at: expiresAt
     });
     
   } catch (error) {
-    console.error('❌ Erro ao mudar plano:', error);
+    console.error('='.repeat(60));
+    console.error('❌ ERRO ao mudar plano!');
+    console.error('❌ Mensagem:', error.message);
+    console.error('❌ Stack:', error.stack);
+    console.error('='.repeat(60));
     res.status(500).json({ error: error.message });
   }
 });
 
-// ENDPOINT DE TESTE: Simular pagamento aprovado (apenas em desenvolvimento)
+// ENDPOINT: Simular pagamento aprovado (funciona em desenvolvimento E produção)
 app.post('/api/payments/:id/simulate-payment', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
     
-    // Apenas permitir em desenvolvimento
-    const isDevelopment = process.env.NODE_ENV !== 'production';
-    
-    if (!isDevelopment) {
-      return res.status(403).json({ 
-        error: 'Endpoint de simulação disponível apenas em desenvolvimento' 
-      });
-    }
-    
-    console.log(`🧪 SIMULANDO pagamento aprovado para Payment ID: ${id}`);
+    console.log('='.repeat(60));
+    console.log('🧪 API /api/payments/:id/simulate-payment');
+    console.log('='.repeat(60));
+    console.log('📋 Payment ID:', id);
+    console.log('👤 User ID:', userId);
+    console.log('🌍 Ambiente:', process.env.NODE_ENV || 'development');
     
     // Buscar pagamento no banco
     const payment = await db.getPaymentById(id);
     
     if (!payment) {
+      console.error('❌ Pagamento não encontrado:', id);
       return res.status(404).json({ error: 'Pagamento não encontrado' });
     }
     
+    console.log('✅ Pagamento encontrado:');
+    console.log('   User ID do pagamento:', payment.user_id);
+    console.log('   Plano:', payment.plan);
+    console.log('   Valor:', payment.amount);
+    console.log('   Status:', payment.status);
+    
     if (payment.user_id !== userId) {
+      console.error('❌ Acesso negado - pagamento de outro usuário');
       return res.status(403).json({ error: 'Acesso negado' });
     }
     
     if (payment.status === 'approved') {
+      console.log('ℹ️ Pagamento já estava aprovado');
       return res.json({ 
         success: true,
         message: 'Pagamento já estava aprovado',
@@ -439,16 +458,28 @@ app.post('/api/payments/:id/simulate-payment', requireAuth, async (req, res) => 
     console.log(`🧪 SIMULAÇÃO: Ativando plano ${planToActivate} (Valor: R$ ${payment.amount})`);
     
     // Aprovar pagamento
+    console.log('📡 Aprovando pagamento no banco...');
     await db.approvePayment(id, userId, 'SIMULATED_' + Date.now());
+    console.log('✅ Pagamento aprovado!');
     
-    // Atualizar plano do usuário com o plano correto baseado no valor
+    // Atualizar plano do usuário
+    console.log('📡 Atualizando plano do usuário para:', planToActivate);
     await db.updateUserPlan(userId, planToActivate);
+    console.log('✅ Plano atualizado!');
     
     // Criar assinatura (30 dias)
     const expiresAt = moment().add(30, 'days').toISOString();
+    console.log('📅 Criando assinatura até:', expiresAt);
     await db.createSubscription(userId, planToActivate, expiresAt);
+    console.log('✅ Assinatura criada!');
     
-    console.log(`✅ SIMULAÇÃO: Plano do usuário ${userId} atualizado para: ${planToActivate}`);
+    console.log('='.repeat(60));
+    console.log(`✅✅✅ SIMULAÇÃO CONCLUÍDA COM SUCESSO! ✅✅✅`);
+    console.log('='.repeat(60));
+    console.log('📋 Plano ativado:', planToActivate);
+    console.log('💰 Valor:', payment.amount);
+    console.log('📅 Expira em:', expiresAt);
+    console.log('='.repeat(60));
     
     res.json({
       success: true,
@@ -460,7 +491,11 @@ app.post('/api/payments/:id/simulate-payment', requireAuth, async (req, res) => 
     });
     
   } catch (error) {
-    console.error('❌ Erro ao simular pagamento:', error);
+    console.error('='.repeat(60));
+    console.error('❌ ERRO ao simular pagamento!');
+    console.error('❌ Mensagem:', error.message);
+    console.error('❌ Stack:', error.stack);
+    console.error('='.repeat(60));
     res.status(500).json({ error: error.message });
   }
 });
