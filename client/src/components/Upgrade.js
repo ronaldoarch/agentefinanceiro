@@ -9,8 +9,20 @@ function Upgrade({ onClose, onPlanChanged }) {
   const [showQRCode, setShowQRCode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [paymentId, setPaymentId] = useState(null);
+  const [paymentUrl, setPaymentUrl] = useState(null);
   const [pollingAttempts, setPollingAttempts] = useState(0);
+  const [pollingIntervalRef, setPollingIntervalRef] = useState(null);
   const { user, refreshUser } = useAuth();
+  
+  // Cleanup ao desmontar componente
+  React.useEffect(() => {
+    return () => {
+      if (pollingIntervalRef) {
+        clearInterval(pollingIntervalRef);
+        console.log('🧹 Upgrade desmontado - polling limpo');
+      }
+    };
+  }, [pollingIntervalRef]);
 
   const plans = {
     basico: {
@@ -49,46 +61,81 @@ function Upgrade({ onClose, onPlanChanged }) {
   };
 
   async function handleRequestPayment() {
+    console.log('='.repeat(60));
+    console.log('💳 UPGRADE: Iniciando requisição de pagamento');
+    console.log('='.repeat(60));
+    console.log('📋 Plano selecionado:', selectedPlan);
+    console.log('💰 Valor:', plans[selectedPlan].price);
+    console.log('👤 Usuário:', user?.email);
+    
     setLoading(true);
     
     try {
       // Salvar informações do plano no localStorage para página de sucesso
       localStorage.setItem('payment_plan', selectedPlan);
       localStorage.setItem('payment_amount', plans[selectedPlan].price.toFixed(2));
+      console.log('💾 Plano salvo no localStorage para backup');
       
+      console.log('📡 Enviando requisição para /api/payments/request...');
       const response = await axios.post('/api/payments/request', {
         plan: selectedPlan
       });
       
-      const { payment_url, payment_id, dev_mode } = response.data;
+      console.log('✅ Resposta recebida:', response.data);
       
-      if (payment_url) {
-        // Salvar payment_id para verificação posterior
+      const { payment_url, payment_id, dev_mode, success } = response.data;
+      
+      if (!success && response.data.error) {
+        throw new Error(response.data.error);
+      }
+      
+      if (payment_url && payment_id) {
+        console.log('✅ Pagamento criado com sucesso!');
+        console.log('   Payment ID:', payment_id);
+        console.log('   Payment URL:', payment_url);
+        console.log('   Dev Mode:', dev_mode);
+        
+        // Salvar payment_id e URL
         setPaymentId(payment_id);
+        setPaymentUrl(payment_url);
         
         // Mensagem diferente para modo dev
         if (dev_mode) {
-          alert(`✅ Pagamento TESTE criado!\n\n🔧 MODO DE DESENVOLVIMENTO\n\nVocê será redirecionado para a página de pagamento do AbacatePay.\n\nEste é um pagamento de teste e não será cobrado.\n\nApós "pagar", seu plano será atualizado automaticamente!`);
+          alert(`✅ Pagamento TESTE criado!\n\n🔧 MODO DE DESENVOLVIMENTO\n\nPayment ID: ${payment_id}\n\nVocê será redirecionado para a página de pagamento do AbacatePay.\n\nEste é um pagamento de teste e não será cobrado.\n\nApós "pagar", seu plano será atualizado automaticamente!`);
         } else {
-          alert(`✅ Pagamento criado!\n\nVocê será redirecionado para a página de pagamento PIX do AbacatePay.\n\nApós pagar, seu plano será atualizado automaticamente!`);
+          alert(`✅ Pagamento criado!\n\nPayment ID: ${payment_id}\nPlano: ${plans[selectedPlan].name}\nValor: R$ ${plans[selectedPlan].price.toFixed(2)}\n\nVocê será redirecionado para a página de pagamento PIX.\n\nApós pagar, seu plano será atualizado automaticamente!`);
         }
         
         // Abrir página do AbacatePay
-        window.open(payment_url, '_blank');
+        console.log('🌐 Abrindo página de pagamento...');
+        const opened = window.open(payment_url, '_blank');
+        
+        if (!opened) {
+          console.warn('⚠️ Pop-up bloqueado! Pedindo para usuário permitir.');
+          alert('⚠️ Pop-up foi bloqueado!\n\nPor favor, permita pop-ups para este site e tente novamente.\n\nOu acesse manualmente: ' + payment_url);
+        }
         
         // Mostrar tela de aguardando pagamento
         setShowQRCode(true);
         
         // Iniciar verificação automática de pagamento
+        console.log('🔄 Iniciando polling de verificação...');
         startPaymentPolling(payment_id);
       } else {
-        alert('❌ Erro: URL de pagamento não foi gerada. Tente novamente.');
+        console.error('❌ Resposta sem payment_url ou payment_id:', response.data);
+        throw new Error('URL de pagamento não foi gerada. Resposta inválida do servidor.');
       }
       
     } catch (error) {
-      console.error('Erro completo:', error);
+      console.error('='.repeat(60));
+      console.error('❌ ERRO ao solicitar pagamento!');
+      console.error('❌ Mensagem:', error.message);
+      console.error('❌ Resposta:', error.response?.data);
+      console.error('❌ Stack:', error.stack);
+      console.error('='.repeat(60));
+      
       const errorMessage = error.response?.data?.error || error.message || 'Erro desconhecido';
-      alert(`❌ Erro ao solicitar pagamento:\n\n${errorMessage}\n\nPor favor, tente novamente ou entre em contato com o suporte.`);
+      alert(`❌ Erro ao solicitar pagamento:\n\n${errorMessage}\n\nDetalhes técnicos:\n- Plano: ${selectedPlan}\n- Valor: R$ ${plans[selectedPlan].price.toFixed(2)}\n\nPor favor, tente novamente ou entre em contato com o suporte.`);
     } finally {
       setLoading(false);
     }
@@ -99,75 +146,183 @@ function Upgrade({ onClose, onPlanChanged }) {
     let attempts = 0;
     const maxAttempts = 120; // 120 tentativas = 6 minutos
     
-    console.log('🔄 Iniciando verificação automática de pagamento...');
+    console.log('='.repeat(60));
+    console.log('🔄 POLLING: Iniciando verificação automática de pagamento');
+    console.log('='.repeat(60));
     console.log('📋 Payment ID:', paymentId);
-    console.log('⏱️ Verificando a cada 3 segundos por até 6 minutos');
+    console.log('⏱️ Intervalo: 3 segundos');
+    console.log('⏰ Duração máxima: 6 minutos (120 tentativas)');
     
     const interval = setInterval(async () => {
       attempts++;
       setPollingAttempts(attempts); // Atualizar UI
-      console.log(`🔍 Verificação ${attempts}/${maxAttempts} - Checando status do pagamento...`);
+      console.log(`🔍 [${attempts}/${maxAttempts}] Verificando status do pagamento #${paymentId}...`);
       
       try {
         const response = await axios.get(`/api/payments/${paymentId}/status`);
-        console.log('📊 Status atual:', response.data.status);
+        const status = response.data.status;
+        const planAprovado = response.data.plan;
         
-        if (response.data.status === 'paid') {
+        console.log(`📊 [${attempts}/${maxAttempts}] Status: ${status}`);
+        
+        if (status === 'paid') {
           clearInterval(interval);
-          console.log('✅ PAGAMENTO CONFIRMADO!');
-          console.log('🎉 Plano aprovado:', response.data.plan);
+          console.log('='.repeat(60));
+          console.log('✅✅✅ PAGAMENTO CONFIRMADO! ✅✅✅');
+          console.log('='.repeat(60));
+          console.log('🎉 Plano aprovado:', planAprovado);
+          console.log('💰 Valor pago: R$', plans[selectedPlan].price.toFixed(2));
           
           // Salvar plano no localStorage antes de redirecionar
-          localStorage.setItem('user_plan', response.data.plan);
+          localStorage.setItem('user_plan', planAprovado);
           localStorage.setItem('user_plan_updated_at', new Date().toISOString());
+          console.log('💾 Plano salvo no localStorage:', planAprovado);
           
-          // Fechar modal antes de redirecionar
+          // Atualizar contexto do usuário ANTES de redirecionar
+          console.log('🔄 Atualizando contexto do usuário...');
+          try {
+            await refreshUser();
+            console.log('✅ Contexto atualizado!');
+          } catch (refreshError) {
+            console.warn('⚠️ Erro ao atualizar contexto:', refreshError.message);
+          }
+          
+          // Fechar modal
           setShowQRCode(false);
+          setPollingIntervalRef(null);
           
-          // Pequeno delay para garantir que tudo foi salvo
+          // Pequeno delay e redirecionar
           setTimeout(() => {
-            console.log('🔄 Redirecionando para página de sucesso...');
-            // Redirecionar para página de sucesso com plano correto
-            window.location.href = '/payment/success?plan=' + response.data.plan;
+            console.log('🔄 Redirecionando para /payment/success...');
+            window.location.href = '/payment/success?plan=' + planAprovado + '&amount=' + plans[selectedPlan].price.toFixed(2);
           }, 500);
+          
+          return; // Sair da função
         }
         
         // Parar após número máximo de tentativas
         if (attempts >= maxAttempts) {
           clearInterval(interval);
-          console.log('⏰ Timeout: parou de verificar pagamento após 6 minutos');
-          console.log('ℹ️ Você pode fechar esta tela e voltar ao painel.');
-          console.log('ℹ️ Seu plano será atualizado automaticamente assim que o pagamento for confirmado.');
+          setPollingIntervalRef(null);
+          console.log('='.repeat(60));
+          console.log('⏰ TIMEOUT: Parou após 6 minutos');
+          console.log('='.repeat(60));
+          alert('⏰ Tempo limite atingido!\n\nNão detectamos o pagamento ainda.\n\nSe você já pagou:\n- Aguarde alguns minutos e recarregue a página\n- Seu plano será atualizado automaticamente\n\nSe não pagou:\n- Você pode pagar depois\n- Acesse o link salvo ou solicite novo pagamento');
         }
         
       } catch (error) {
-        console.error('❌ Erro ao verificar status:', error);
+        console.error(`❌ [${attempts}/${maxAttempts}] Erro ao verificar status:`, error.message);
         // Não parar o polling por causa de um erro - pode ser temporário
       }
     }, 3000); // A cada 3 segundos
     
-    // Retornar função de cleanup para parar polling se modal for fechado
-    return () => {
-      clearInterval(interval);
-      console.log('🛑 Polling de pagamento parado');
-    };
+    // Armazenar referência do interval
+    setPollingIntervalRef(interval);
   }
 
   // FUNÇÃO DE TESTE: Simular pagamento aprovado
   async function handleSimulatePayment() {
-    if (!paymentId) return;
+    if (!paymentId) {
+      console.error('❌ Nenhum payment ID disponível');
+      alert('❌ Erro: Nenhum pagamento em andamento');
+      return;
+    }
+    
+    console.log('='.repeat(60));
+    console.log('🧪 SIMULAÇÃO: Simulando pagamento aprovado');
+    console.log('='.repeat(60));
+    console.log('📋 Payment ID:', paymentId);
+    console.log('💰 Plano:', selectedPlan);
     
     try {
       setLoading(true);
+      
       const response = await axios.post(`/api/payments/${paymentId}/simulate-payment`);
       
+      console.log('✅ Resposta da simulação:', response.data);
+      
       if (response.data.success) {
+        const planAprovado = response.data.plan;
+        console.log('✅ SIMULAÇÃO: Pagamento aprovado!');
+        console.log('🎉 Plano aprovado:', planAprovado);
+        
+        // Parar polling
+        if (pollingIntervalRef) {
+          clearInterval(pollingIntervalRef);
+          setPollingIntervalRef(null);
+        }
+        
+        // Salvar no localStorage
+        localStorage.setItem('user_plan', planAprovado);
+        localStorage.setItem('user_plan_updated_at', new Date().toISOString());
+        
+        // Fechar modal
+        setShowQRCode(false);
+        
         // Redirecionar para página de sucesso
-        window.location.href = '/payment/success?plan=' + response.data.plan;
+        setTimeout(() => {
+          console.log('🔄 Redirecionando para página de sucesso...');
+          window.location.href = '/payment/success?plan=' + planAprovado + '&amount=' + plans[selectedPlan].price.toFixed(2);
+        }, 500);
+      } else {
+        throw new Error('Simulação não retornou sucesso');
       }
     } catch (error) {
-      console.error('Erro ao simular pagamento:', error);
-      alert('❌ Erro ao simular pagamento: ' + (error.response?.data?.error || error.message));
+      console.error('='.repeat(60));
+      console.error('❌ ERRO na simulação:', error.message);
+      console.error('='.repeat(60));
+      alert('❌ Erro ao simular pagamento:\n\n' + (error.response?.data?.error || error.message));
+    } finally {
+      setLoading(false);
+    }
+  }
+  
+  // Função para reabrir página de pagamento
+  function handleReopenPaymentPage() {
+    if (paymentUrl) {
+      console.log('🌐 Reabrindo página de pagamento:', paymentUrl);
+      window.open(paymentUrl, '_blank');
+    } else {
+      alert('❌ URL de pagamento não disponível. Feche e solicite um novo pagamento.');
+    }
+  }
+  
+  // Função para verificar manualmente
+  async function handleManualCheck() {
+    if (!paymentId) return;
+    
+    setLoading(true);
+    console.log('🔍 Verificação manual do pagamento...');
+    
+    try {
+      const response = await axios.get(`/api/payments/${paymentId}/status`);
+      
+      if (response.data.status === 'paid') {
+        console.log('✅ Pagamento encontrado!');
+        
+        // Parar polling
+        if (pollingIntervalRef) {
+          clearInterval(pollingIntervalRef);
+          setPollingIntervalRef(null);
+        }
+        
+        const planAprovado = response.data.plan;
+        localStorage.setItem('user_plan', planAprovado);
+        localStorage.setItem('user_plan_updated_at', new Date().toISOString());
+        
+        await refreshUser();
+        
+        setShowQRCode(false);
+        
+        setTimeout(() => {
+          window.location.href = '/payment/success?plan=' + planAprovado + '&amount=' + plans[selectedPlan].price.toFixed(2);
+        }, 500);
+      } else {
+        alert(`ℹ️ Pagamento ainda não confirmado.\n\nStatus: ${response.data.status}\n\nAguarde mais alguns segundos após pagar.`);
+      }
+    } catch (error) {
+      console.error('❌ Erro na verificação manual:', error);
+      alert('❌ Erro ao verificar: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -238,11 +393,27 @@ function Upgrade({ onClose, onPlanChanged }) {
               
               <h3>Pagamento Criado com Sucesso!</h3>
               
-              <p className="payment-info">
-                <strong>ID do Pagamento:</strong> #{paymentId}<br/>
-                <strong>Valor:</strong> R$ {plans[selectedPlan].price.toFixed(2)}<br/>
-                <strong>Plano:</strong> {plans[selectedPlan].name}
-              </p>
+              <div className="payment-info" style={{
+                background: '#f8f9fa',
+                padding: '15px',
+                borderRadius: '10px',
+                marginBottom: '20px'
+              }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                  <div>
+                    <strong style={{ color: '#667eea' }}>ID do Pagamento:</strong>
+                    <div style={{ fontSize: '1.1em', fontWeight: 'bold' }}>#{paymentId}</div>
+                  </div>
+                  <div>
+                    <strong style={{ color: '#667eea' }}>Valor:</strong>
+                    <div style={{ fontSize: '1.1em', fontWeight: 'bold' }}>R$ {plans[selectedPlan].price.toFixed(2)}</div>
+                  </div>
+                </div>
+                <div>
+                  <strong style={{ color: '#667eea' }}>Plano:</strong>
+                  <div style={{ fontSize: '1.2em', fontWeight: 'bold' }}>{plans[selectedPlan].name}</div>
+                </div>
+              </div>
 
               <div className="payment-instructions-box">
                 <h4>📱 Como Pagar:</h4>
@@ -298,10 +469,43 @@ function Upgrade({ onClose, onPlanChanged }) {
               </div>
             </div>
 
-            <div className="action-buttons">
-              <button className="btn-secondary" onClick={onClose}>
-                Fechar
+            <div className="action-buttons" style={{ 
+              display: 'flex', 
+              gap: '10px', 
+              flexWrap: 'wrap', 
+              justifyContent: 'center',
+              marginTop: '20px'
+            }}>
+              <button 
+                className="btn-secondary" 
+                onClick={handleReopenPaymentPage}
+                disabled={!paymentUrl}
+                style={{
+                  padding: '12px 20px',
+                  borderRadius: '8px',
+                  fontSize: '0.95rem',
+                  cursor: paymentUrl ? 'pointer' : 'not-allowed',
+                  opacity: paymentUrl ? 1 : 0.5
+                }}
+              >
+                🔗 Abrir Página de Pagamento
               </button>
+              
+              <button 
+                className="btn-primary" 
+                onClick={handleManualCheck}
+                disabled={loading}
+                style={{
+                  padding: '12px 20px',
+                  borderRadius: '8px',
+                  fontSize: '0.95rem',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  opacity: loading ? 0.7 : 1
+                }}
+              >
+                {loading ? '⏳ Verificando...' : '🔍 Já Fiz o Pagamento'}
+              </button>
+              
               {process.env.NODE_ENV !== 'production' && (
                 <button 
                   className="btn-test" 
@@ -310,20 +514,30 @@ function Upgrade({ onClose, onPlanChanged }) {
                   style={{
                     background: 'linear-gradient(135deg, #ff9800 0%, #ff5722 100%)',
                     color: 'white',
-                    padding: '14px 30px',
+                    padding: '12px 20px',
                     border: 'none',
-                    borderRadius: '10px',
-                    fontSize: '1rem',
+                    borderRadius: '8px',
+                    fontSize: '0.95rem',
                     fontWeight: '600',
                     cursor: loading ? 'not-allowed' : 'pointer',
-                    opacity: loading ? 0.7 : 1
+                    opacity: loading ? 0.7 : 1,
+                    boxShadow: '0 2px 8px rgba(255, 152, 0, 0.3)'
                   }}
                 >
-                  {loading ? '⏳ Simulando...' : '🧪 SIMULAR Pagamento (TESTE)'}
+                  {loading ? '⏳ Simulando...' : '🧪 SIMULAR Pagamento'}
                 </button>
               )}
-              <button className="btn-primary" onClick={() => window.location.reload()}>
-                ✓ Já Fiz o Pagamento
+              
+              <button 
+                className="btn-secondary" 
+                onClick={onClose}
+                style={{
+                  padding: '12px 20px',
+                  borderRadius: '8px',
+                  fontSize: '0.95rem'
+                }}
+              >
+                ❌ Fechar
               </button>
             </div>
           </div>
