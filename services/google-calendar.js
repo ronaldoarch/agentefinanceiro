@@ -15,8 +15,9 @@ const oauth2Client = new google.auth.OAuth2(
 
 /**
  * Gera URL de autorização para o usuário conectar sua conta Google
+ * @param {number} userId - ID do usuário que está conectando
  */
-function getAuthUrl() {
+function getAuthUrl(userId) {
   const scopes = [
     'https://www.googleapis.com/auth/calendar.events', // Criar/editar eventos
     'https://www.googleapis.com/auth/calendar.readonly' // Ler calendário
@@ -25,9 +26,11 @@ function getAuthUrl() {
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline', // Para obter refresh token
     scope: scopes,
-    prompt: 'consent' // Força mostrar tela de consentimento
+    prompt: 'consent', // Força mostrar tela de consentimento
+    state: userId.toString() // Passa o userId no state para recuperar no callback
   });
 
+  console.log('📅 URL de autorização gerada para usuário:', userId);
   return url;
 }
 
@@ -51,17 +54,33 @@ async function saveUserTokens(userId, tokens) {
   try {
     const supabase = db.getSupabaseClient();
     
+    // Calcular data de expiração (access tokens do Google expiram em 1 hora)
+    // Se tokens.expiry_date vier undefined, calcular manualmente
+    let expiryDate = tokens.expiry_date;
+    if (!expiryDate || expiryDate === 'undefined') {
+      expiryDate = Date.now() + (3600 * 1000); // 1 hora a partir de agora
+    }
+    
+    console.log('💾 Salvando tokens do Google:');
+    console.log('   User ID:', userId);
+    console.log('   Access Token:', tokens.access_token ? 'presente' : 'ausente');
+    console.log('   Refresh Token:', tokens.refresh_token ? 'presente' : 'ausente');
+    console.log('   Expiry Date:', expiryDate);
+    
     const { error } = await supabase
       .from('users')
       .update({
-        google_access_token: tokens.access_token,
-        google_refresh_token: tokens.refresh_token,
-        google_token_expiry: tokens.expiry_date,
+        google_access_token: tokens.access_token || null,
+        google_refresh_token: tokens.refresh_token || null,
+        google_token_expiry: expiryDate ? parseInt(expiryDate) : null,
         google_calendar_connected: true
       })
       .eq('id', userId);
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Erro do Supabase ao salvar tokens:', error);
+      throw error;
+    }
     
     console.log(`✅ Tokens do Google salvos para usuário ${userId}`);
     return true;

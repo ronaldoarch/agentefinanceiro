@@ -1041,7 +1041,12 @@ app.delete('/api/lembretes/:id', requireAuth, async (req, res) => {
 // Obter URL de autorização do Google
 app.get('/api/google/auth-url', requireAuth, (req, res) => {
   try {
-    const authUrl = googleCalendarService.getAuthUrl();
+    const userId = req.user.id;
+    console.log('📅 Gerando URL de autorização para usuário:', userId);
+    
+    const authUrl = googleCalendarService.getAuthUrl(userId);
+    console.log('✅ URL gerada com sucesso');
+    
     res.json({ authUrl });
   } catch (error) {
     console.error('❌ Erro ao gerar URL de autorização:', error);
@@ -1052,23 +1057,39 @@ app.get('/api/google/auth-url', requireAuth, (req, res) => {
 // Callback do OAuth (recebe o código de autorização)
 app.get('/api/google/callback', async (req, res) => {
   try {
+    console.log('📅 Google OAuth Callback recebido!');
     const { code, state } = req.query; // state contém o userId
     
+    console.log('🔍 Code:', code ? 'presente' : 'ausente');
+    console.log('🔍 State (userId):', state);
+    
     if (!code) {
+      console.error('❌ Código de autorização não fornecido');
       return res.status(400).send('Código de autorização não fornecido');
     }
 
+    if (!state) {
+      console.error('❌ State (userId) não fornecido');
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/?google_error=missing_state`);
+    }
+
     // Trocar código por tokens
+    console.log('🔄 Trocando código por tokens...');
     const tokens = await googleCalendarService.getTokensFromCode(code);
+    console.log('✅ Tokens recebidos do Google!');
     
-    // Salvar tokens no banco (userId vem do state ou da sessão)
-    const userId = state; // Você pode passar o userId no state
-    await googleCalendarService.saveUserTokens(userId, tokens);
+    // Salvar tokens no banco
+    console.log('💾 Salvando tokens no banco...');
+    await googleCalendarService.saveUserTokens(state, tokens);
+    console.log('✅ Tokens salvos com sucesso!');
 
     // Redirecionar para o frontend com sucesso
+    console.log('🔄 Redirecionando para frontend...');
     res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/?google_connected=true`);
   } catch (error) {
     console.error('❌ Erro no callback do Google:', error);
+    console.error('❌ Detalhes:', error.message);
+    console.error('❌ Stack:', error.stack);
     res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/?google_error=true`);
   }
 });
