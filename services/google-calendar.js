@@ -306,24 +306,34 @@ async function createCalendarEvent(userId, eventData) {
  */
 function convertToSaoPauloTime(dateString) {
   try {
-    // Se a data já está sem Z, assumir que é local e retornar como está
+    // Se a data já está sem Z e sem timezone, assumir que é local e retornar como está
     if (!dateString.endsWith('Z') && !dateString.includes('+') && !dateString.includes('-', 10)) {
       return dateString;
     }
     
-    // Criar objeto Date a partir da string
+    // Criar objeto Date a partir da string (sempre interpreta como UTC se tiver Z)
     const date = new Date(dateString);
     
-    // Obter componentes da data no timezone local (America/Sao_Paulo)
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
+    // Obter o offset de America/Sao_Paulo em minutos
+    // America/Sao_Paulo é UTC-3 (180 minutos)
+    // Nota: pode variar com horário de verão, mas vamos usar UTC-3 como padrão
+    const offsetSP = -3 * 60; // -180 minutos (UTC-3)
+    
+    // Converter para America/Sao_Paulo: subtrair o offset (já que estamos em UTC)
+    const dateSP = new Date(date.getTime() + (offsetSP * 60 * 1000));
+    
+    // Obter componentes da data no timezone America/Sao_Paulo
+    const year = dateSP.getUTCFullYear();
+    const month = String(dateSP.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(dateSP.getUTCDate()).padStart(2, '0');
+    const hours = String(dateSP.getUTCHours()).padStart(2, '0');
+    const minutes = String(dateSP.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(dateSP.getUTCSeconds()).padStart(2, '0');
     
     // Retornar no formato ISO sem timezone (Google Calendar interpreta como local)
-    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+    const result = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+    console.log(`🕐 Conversão: ${dateString} (UTC) → ${result} (America/Sao_Paulo)`);
+    return result;
   } catch (error) {
     console.error('❌ Erro ao converter data:', error);
     return dateString; // Retornar original se houver erro
