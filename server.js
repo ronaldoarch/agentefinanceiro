@@ -1098,19 +1098,25 @@ app.get('/api/google/callback', async (req, res) => {
 app.get('/api/google/status', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    console.log(`📊 Verificando status do Google Calendar para usuário ${userId}`);
+    
     let connected = await googleCalendarService.isConnected(userId);
+    console.log(`📊 Status inicial (isConnected): ${connected}`);
     
     let email = null;
     if (connected) {
       try {
         email = await googleCalendarService.getConnectedEmail(userId);
+        console.log(`📊 Email obtido: ${email || 'null'}`);
         // Se não conseguiu buscar email, o token está inválido
         if (!email) {
+          console.log('⚠️ Email não obtido, marcando como desconectado');
           connected = false;
         }
       } catch (emailError) {
         // Erro 401 é esperado quando token está inválido - não logar como erro
         if (emailError.code === 401 || emailError.status === 401) {
+          console.log('⚠️ Token inválido (401), marcando como desconectado');
           connected = false;
         } else {
           // Apenas logar outros erros
@@ -1120,6 +1126,7 @@ app.get('/api/google/status', requireAuth, async (req, res) => {
       }
     }
 
+    console.log(`📊 Status final: connected=${connected}, email=${email || 'null'}`);
     res.json({ connected, email });
   } catch (error) {
     console.error('❌ Erro ao verificar status:', error);

@@ -20,13 +20,27 @@ function Integracoes() {
     if (urlParams.get('google_connected') === 'true') {
       alert('✅ Google Agenda conectado com sucesso!');
       window.history.replaceState({}, '', '/');
-      verificarStatus();
+      // Aguardar um pouco antes de verificar (para garantir que o backend processou)
+      setTimeout(() => {
+        verificarStatus();
+      }, 1000);
     }
     if (urlParams.get('google_error') === 'true') {
       alert('❌ Erro ao conectar Google Agenda. Tente novamente.');
       window.history.replaceState({}, '', '/');
     }
   }, []);
+
+  // Verificar status periodicamente (a cada 5 segundos) quando não conectado
+  useEffect(() => {
+    if (!googleStatus.connected && !googleStatus.loading) {
+      const interval = setInterval(() => {
+        verificarStatus();
+      }, 5000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [googleStatus.connected, googleStatus.loading]);
 
   const verificarStatus = async () => {
     try {
@@ -36,13 +50,16 @@ function Integracoes() {
         headers: { Authorization: `Bearer ${token}` }
       });
       
+      console.log('📊 Status do Google Calendar:', response.data);
+      
       setGoogleStatus({
-        connected: response.data.connected,
-        email: response.data.email,
+        connected: response.data.connected || false,
+        email: response.data.email || null,
         loading: false
       });
     } catch (error) {
-      console.error('Erro ao verificar status do Google:', error);
+      console.error('❌ Erro ao verificar status do Google:', error);
+      console.error('❌ Detalhes:', error.response?.data || error.message);
       setGoogleStatus({ connected: false, email: null, loading: false });
     }
   };

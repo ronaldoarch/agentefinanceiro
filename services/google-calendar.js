@@ -378,13 +378,23 @@ async function isConnected(userId) {
     
     const { data, error } = await supabase
       .from('users')
-      .select('google_calendar_connected, email')
+      .select('google_calendar_connected, google_access_token, email')
       .eq('id', userId)
       .single();
 
-    if (error) return false;
+    if (error) {
+      console.error('❌ Erro ao buscar dados do usuário:', error);
+      return false;
+    }
     
-    return data.google_calendar_connected || false;
+    // Verificar se tem token E se está marcado como conectado
+    const temToken = data.google_access_token && data.google_access_token.trim() !== '';
+    const marcadoConectado = data.google_calendar_connected === true;
+    
+    console.log(`📊 Usuário ${userId}: temToken=${temToken}, marcadoConectado=${marcadoConectado}`);
+    
+    // Retornar true apenas se tiver token E estiver marcado como conectado
+    return temToken && marcadoConectado;
   } catch (error) {
     console.error('❌ Erro ao verificar conexão:', error);
     return false;
