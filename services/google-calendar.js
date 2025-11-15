@@ -76,14 +76,23 @@ async function saveUserTokens(userId, tokens) {
     console.log('     - google_token_expiry:', expiryDate);
     console.log('     - google_calendar_connected: true');
     
+    // Preparar dados para UPDATE
+    const updateData = {
+      google_access_token: tokens.access_token || null,
+      google_refresh_token: tokens.refresh_token || null,
+      google_token_expiry: expiryDate ? parseInt(expiryDate) : null,
+      google_calendar_connected: true
+    };
+    
+    console.log('💾 Dados preparados:', JSON.stringify({
+      ...updateData,
+      google_access_token: updateData.google_access_token ? 'presente' : 'null',
+      google_refresh_token: updateData.google_refresh_token ? 'presente' : 'null'
+    }, null, 2));
+    
     const { data, error } = await supabase
       .from('users')
-      .update({
-        google_access_token: tokens.access_token || null,
-        google_refresh_token: tokens.refresh_token || null,
-        google_token_expiry: expiryDate ? parseInt(expiryDate) : null,
-        google_calendar_connected: true
-      })
+      .update(updateData)
       .eq('id', userId)
       .select();
 
