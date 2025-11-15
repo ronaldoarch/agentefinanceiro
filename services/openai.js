@@ -583,18 +583,23 @@ IMPORTANTE SOBRE ROTINAS COM MÚLTIPLOS BLOCOS:
   → Crie 2 eventos: um para "Abertura" e outro para "Análise", ambos recorrentes segunda a quinta
 
 REGRAS PARA DATA (CRÍTICO - CALCULE CORRETAMENTE):
-- DATA ATUAL: ${new Date().toISOString()}
+- DATA ATUAL (America/Sao_Paulo): ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+- DATA ATUAL (UTC): ${new Date().toISOString()}
 - Se mencionar "amanhã": adicione 1 dia à data atual
 - Se mencionar "dia X": use o dia X do mês atual (se já passou, use próximo mês)
 - Se mencionar "semana que vem": adicione 7 dias à data atual
-- Se mencionar hora (ex: "14h", "14:00", "às 2 da tarde"): use essa hora
+- Se mencionar hora (ex: "14h", "14:00", "às 2 da tarde"): use essa hora NO TIMEZONE America/Sao_Paulo
 - Se mencionar "por volta das Xh" ou "flex entre X e Y": use a hora inicial (ex: "por volta das 9h" → 09:00)
 - Se não mencionar hora: use 09:00 como padrão
 - Se não mencionar data fim: calcule baseado na duração mencionada (ex: "15 min" → adicione 15 minutos)
 - Se mencionar duração (ex: "10 a 15 min", "20 a 30 min"): use a duração MÁXIMA para calcular dataFim
-- SEMPRE retorne data em formato ISO 8601: "YYYY-MM-DDTHH:mm:ss.000Z"
-- Use timezone UTC (adicionar Z no final)
+- IMPORTANTE: As horas mencionadas pelo usuário são SEMPRE no timezone America/Sao_Paulo (GMT-3)
+- Para calcular a data correta:
+  1. Pegue a data/hora desejada no timezone America/Sao_Paulo
+  2. Converta para UTC (adicione 3 horas se for horário de verão, ou use offset correto)
+  3. Retorne no formato ISO 8601: "YYYY-MM-DDTHH:mm:ss.000Z"
 - Para rotinas semanais (ex: "segunda a quinta"): use a PRÓXIMA segunda-feira como dataInicio
+- EXEMPLO: Se usuário pedir "9h" e hoje é 18/11/2024 → retorne "2024-11-18T12:00:00.000Z" (9h SP = 12h UTC)
 
 Exemplos CORRETOS (data atual: ${new Date().toISOString()}):
 

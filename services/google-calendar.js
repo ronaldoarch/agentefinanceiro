@@ -300,6 +300,37 @@ async function createCalendarEvent(userId, eventData) {
 }
 
 /**
+ * Converte uma data UTC para o formato ISO no timezone America/Sao_Paulo
+ * @param {string} dateString - Data em formato ISO (UTC ou local)
+ * @returns {string} - Data no formato ISO para America/Sao_Paulo (sem Z)
+ */
+function convertToSaoPauloTime(dateString) {
+  try {
+    // Se a data já está sem Z, assumir que é local e retornar como está
+    if (!dateString.endsWith('Z') && !dateString.includes('+') && !dateString.includes('-', 10)) {
+      return dateString;
+    }
+    
+    // Criar objeto Date a partir da string
+    const date = new Date(dateString);
+    
+    // Obter componentes da data no timezone local (America/Sao_Paulo)
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    
+    // Retornar no formato ISO sem timezone (Google Calendar interpreta como local)
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+  } catch (error) {
+    console.error('❌ Erro ao converter data:', error);
+    return dateString; // Retornar original se houver erro
+  }
+}
+
+/**
  * Cria um evento genérico no Google Calendar (para eventos/compromissos)
  * @param {number} userId - ID do usuário
  * @param {Object} eventData - Dados do evento { titulo, descricao, dataInicio, dataFim, local, recorrencia, diasSemana }
@@ -307,33 +338,40 @@ async function createCalendarEvent(userId, eventData) {
 async function createGenericCalendarEvent(userId, eventData) {
   try {
     console.log(`📅 Criando evento genérico no Google Calendar para usuário ${userId}`);
-    console.log('📅 Dados do evento:', JSON.stringify(eventData, null, 2));
+    console.log('📅 Dados do evento (original):', JSON.stringify(eventData, null, 2));
     
     const auth = await getAuthenticatedClient(userId);
     const calendar = google.calendar({ version: 'v3', auth });
-
-    // Se dataFim não foi fornecida, usar 1 hora depois do início
-    let dataFim = eventData.dataFim;
-    if (!dataFim && eventData.dataInicio) {
-      const inicio = new Date(eventData.dataInicio);
-      inicio.setHours(inicio.getHours() + 1);
-      dataFim = inicio.toISOString();
-    }
 
     // Validar data de início
     if (!eventData.dataInicio) {
       throw new Error('Data de início é obrigatória');
     }
 
+    // Converter datas UTC para America/Sao_Paulo
+    const dataInicioSP = convertToSaoPauloTime(eventData.dataInicio);
+    console.log(`📅 Data início convertida: ${eventData.dataInicio} → ${dataInicioSP}`);
+
+    // Se dataFim não foi fornecida, calcular baseado na duração ou usar 1 hora depois
+    let dataFimSP = eventData.dataFim;
+    if (!dataFimSP) {
+      const inicio = new Date(eventData.dataInicio);
+      inicio.setHours(inicio.getHours() + 1);
+      dataFimSP = convertToSaoPauloTime(inicio.toISOString());
+    } else {
+      dataFimSP = convertToSaoPauloTime(dataFimSP);
+    }
+    console.log(`📅 Data fim convertida: ${eventData.dataFim || 'calculada'} → ${dataFimSP}`);
+
     const event = {
       summary: eventData.titulo,
       description: eventData.descricao || '',
       start: {
-        dateTime: eventData.dataInicio,
+        dateTime: dataInicioSP,
         timeZone: 'America/Sao_Paulo'
       },
       end: {
-        dateTime: dataFim || eventData.dataInicio,
+        dateTime: dataFimSP,
         timeZone: 'America/Sao_Paulo'
       },
       reminders: {
