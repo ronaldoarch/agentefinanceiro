@@ -1719,6 +1719,45 @@ app.get('/api/chat/history', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
     const history = await db.getChatHistory(userId, 100);
+    
+    // Se não houver histórico, retornar mensagem inicial
+    if (history.length === 0) {
+      const mensagemInicial = {
+        role: 'assistant',
+        content: `Olá! 👋 Sou seu Assistente Financeiro inteligente!
+
+**O que posso fazer por você:**
+
+✅ **Registrar transações automaticamente**
+   - Receitas e despesas
+   - Exemplo: "Gastei R$ 50 no supermercado"
+
+✅ **Criar lembretes financeiros**
+   - Contas a pagar, vencimentos
+   - Exemplo: "Lembrar de pagar conta de luz dia 15"
+
+✅ **Criar eventos no Google Agenda** 📅
+   - Reuniões, compromissos, tarefas
+   - Exemplo: "Reunião com João amanhã às 14h"
+   - *Funciona se você conectar o Google Calendar em Integrações*
+
+✅ **Responder perguntas sobre suas finanças**
+   - Saldo, resumos, análises
+   - Exemplo: "Quanto gastei este mês?"
+
+✅ **Dar dicas e conselhos financeiros**
+
+**Como usar:**
+- Digite sua mensagem normalmente
+- Ou use o botão de áudio 🎤 para falar
+- Seja natural e específico!
+
+Como posso ajudar você hoje? 😊`,
+        created_at: new Date().toISOString()
+      };
+      return res.json([mensagemInicial]);
+    }
+    
     res.json(history);
   } catch (error) {
     console.error('Erro ao buscar histórico:', error);
