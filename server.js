@@ -1046,6 +1046,9 @@ app.get('/api/google/auth-url', requireAuth, (req, res) => {
     
     const authUrl = googleCalendarService.getAuthUrl(userId);
     console.log('✅ URL gerada com sucesso');
+    console.log('📋 URL completa:', authUrl);
+    console.log('📋 Redirect URI configurado:', process.env.GOOGLE_REDIRECT_URI);
+    console.log('📋 Frontend URL:', process.env.FRONTEND_URL);
     
     res.json({ authUrl });
   } catch (error) {
@@ -1054,12 +1057,27 @@ app.get('/api/google/auth-url', requireAuth, (req, res) => {
   }
 });
 
+// Endpoint de teste para verificar se callback está acessível
+app.get('/api/google/callback/test', (req, res) => {
+  console.log('🧪 TESTE: Callback endpoint está acessível!');
+  console.log('🧪 Query params:', JSON.stringify(req.query, null, 2));
+  res.json({ 
+    success: true, 
+    message: 'Callback endpoint está funcionando!',
+    query: req.query,
+    redirectUri: process.env.GOOGLE_REDIRECT_URI
+  });
+});
+
 // Callback do OAuth (recebe o código de autorização)
 app.get('/api/google/callback', async (req, res) => {
   try {
     console.log('='.repeat(60));
     console.log('📅 Google OAuth Callback recebido!');
+    console.log('📅 Timestamp:', new Date().toISOString());
+    console.log('📅 URL completa:', req.url);
     console.log('📅 Query params:', JSON.stringify(req.query, null, 2));
+    console.log('📅 Headers:', JSON.stringify(req.headers, null, 2));
     
     const { code, state } = req.query; // state contém o userId
     
