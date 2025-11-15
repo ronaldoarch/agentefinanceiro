@@ -314,25 +314,65 @@ function convertToSaoPauloTime(dateString) {
     // Criar objeto Date a partir da string (sempre interpreta como UTC se tiver Z)
     const date = new Date(dateString);
     
-    // Obter o offset de America/Sao_Paulo em minutos
-    // America/Sao_Paulo é UTC-3 (180 minutos)
-    // Nota: pode variar com horário de verão, mas vamos usar UTC-3 como padrão
-    const offsetSP = -3 * 60; // -180 minutos (UTC-3)
+    // Obter o offset de America/Sao_Paulo em horas
+    // America/Sao_Paulo é UTC-3
+    // Quando temos uma data UTC, precisamos subtrair 3 horas para obter a hora local
+    const offsetSPHours = -3;
     
-    // Converter para America/Sao_Paulo: subtrair o offset (já que estamos em UTC)
-    const dateSP = new Date(date.getTime() + (offsetSP * 60 * 1000));
+    // Obter componentes UTC da data original
+    const yearUTC = date.getUTCFullYear();
+    const monthUTC = date.getUTCMonth();
+    const dayUTC = date.getUTCDate();
+    const hoursUTC = date.getUTCHours();
+    const minutesUTC = date.getUTCMinutes();
+    const secondsUTC = date.getUTCSeconds();
     
-    // Obter componentes da data no timezone America/Sao_Paulo
-    const year = dateSP.getUTCFullYear();
-    const month = String(dateSP.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(dateSP.getUTCDate()).padStart(2, '0');
-    const hours = String(dateSP.getUTCHours()).padStart(2, '0');
-    const minutes = String(dateSP.getUTCMinutes()).padStart(2, '0');
-    const seconds = String(dateSP.getUTCSeconds()).padStart(2, '0');
+    // Calcular hora local em SP (UTC - 3)
+    let hoursSP = hoursUTC + offsetSPHours;
+    let daySP = dayUTC;
+    let monthSP = monthUTC;
+    let yearSP = yearUTC;
+    
+    // Ajustar se a hora ficou negativa (dia anterior)
+    if (hoursSP < 0) {
+      hoursSP += 24;
+      daySP--;
+      if (daySP < 1) {
+        monthSP--;
+        if (monthSP < 0) {
+          monthSP = 11;
+          yearSP--;
+        }
+        // Pegar último dia do mês anterior
+        daySP = new Date(yearSP, monthSP + 1, 0).getDate();
+      }
+    }
+    // Ajustar se a hora passou de 23 (próximo dia)
+    if (hoursSP >= 24) {
+      hoursSP -= 24;
+      daySP++;
+      const daysInMonth = new Date(yearSP, monthSP + 1, 0).getDate();
+      if (daySP > daysInMonth) {
+        daySP = 1;
+        monthSP++;
+        if (monthSP > 11) {
+          monthSP = 0;
+          yearSP++;
+        }
+      }
+    }
+    
+    // Formatar componentes
+    const year = String(yearSP).padStart(4, '0');
+    const month = String(monthSP + 1).padStart(2, '0');
+    const day = String(daySP).padStart(2, '0');
+    const hours = String(hoursSP).padStart(2, '0');
+    const minutes = String(minutesUTC).padStart(2, '0');
+    const seconds = String(secondsUTC).padStart(2, '0');
     
     // Retornar no formato ISO sem timezone (Google Calendar interpreta como local)
     const result = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
-    console.log(`🕐 Conversão: ${dateString} (UTC) → ${result} (America/Sao_Paulo)`);
+    console.log(`🕐 Conversão: ${dateString} (${hoursUTC}h UTC) → ${result} (${hoursSP}h America/Sao_Paulo)`);
     return result;
   } catch (error) {
     console.error('❌ Erro ao converter data:', error);
