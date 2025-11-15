@@ -267,7 +267,7 @@ app.post('/api/payments/request', requireAuth, async (req, res) => {
   }
 });
 
-// Verificar status de um pagamento
+// Verificar status de um pagamento (APENAS retorna status, NÃO atualiza plano)
 app.get('/api/payments/:id/status', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -284,35 +284,33 @@ app.get('/api/payments/:id/status', requireAuth, async (req, res) => {
     if (payment.status === 'approved') {
       return res.json({
         status: 'paid',
-        paid_at: payment.approved_at
+        paid_at: payment.approved_at,
+        plan: payment.plan,
+        message: 'Pagamento confirmado! Seu plano foi atualizado automaticamente.'
       });
     }
     
-    // Verificar status no AbacatePay
+    // Verificar status no AbacatePay (apenas para informar o usuário)
+    let externalStatus = 'pending';
     if (payment.transaction_id) {
       const statusResult = await abacatepayService.getChargeStatus(payment.transaction_id);
       
-      if (statusResult.success && statusResult.status === 'PAID') {
-        // Identificar plano pelo valor pago
-        let planToActivate = payment.plan;
-        const planByAmount = getPlanByAmount(payment.amount);
+      if (statusResult.success) {
+        externalStatus = statusResult.status === 'PAID' ? 'paid' : 'pending';
         
-        if (planByAmount && planByAmount !== payment.plan) {
-          console.log(`⚠️ Plano ajustado pelo valor: ${payment.plan} → ${planByAmount}`);
-          planToActivate = planByAmount;
+        // Se o pagamento foi pago no AbacatePay mas ainda não foi aprovado no nosso sistema,
+        // informar que está aguardando confirmação via webhook
+        if (statusResult.status === 'PAID' && payment.status === 'pending') {
+          return res.json({
+            status: 'processing',
+            external_status: 'paid',
+            message: 'Pagamento detectado! Aguardando confirmação automática. O upgrade será aplicado em instantes.'
+          });
         }
-        
-        console.log(`✅ Confirmando pagamento - Plano: ${planToActivate} (Valor: R$ ${payment.amount})`);
-        
-        // Atualizar no banco
-        await db.approvePayment(id, 1, payment.transaction_id); // Admin ID = 1 (sistema)
-        await db.updateUserPlan(userId, planToActivate);
-        
-        // Criar assinatura (30 dias)
-        const expiresAt = moment().add(30, 'days').toISOString();
-        await db.createSubscription(userId, planToActivate, expiresAt);
-        
-        return res.json({
+      }
+    }
+    
+    return res.json({
           status: 'paid',
           paid_at: statusResult.paidAt,
           plan: planToActivate
@@ -347,13 +345,24 @@ app.get('/api/payments/my', requireAuth, async (req, res) => {
 });
 
 // ENDPOINT: Mudar plano diretamente (funciona em desenvolvimento E produção)
+// Endpoint de teste para mudar plano (APENAS EM DESENVOLVIMENTO)
 app.post('/api/test/change-plan', requireAuth, async (req, res) => {
   try {
+    // BLOQUEAR em produção - upgrade só via pagamento confirmado
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    if (!isDevelopment) {
+      console.error('❌ Tentativa de usar endpoint de teste em produção!');
+      return res.status(403).json({ 
+        error: 'Este endpoint está desabilitado em produção. Faça upgrade através do pagamento.',
+        code: 'TEST_ENDPOINT_DISABLED'
+      });
+    }
+    
     const { plan } = req.body;
     const userId = req.user.id;
     
     console.log('='.repeat(60));
-    console.log('🔄 API /api/test/change-plan: Requisição recebida');
+    console.log('🔄 API /api/test/change-plan: Requisição recebida (MODO DEV)');
     console.log('='.repeat(60));
     console.log('👤 User ID:', userId);
     console.log('📋 Plano solicitado:', plan);
@@ -389,9 +398,9 @@ app.post('/api/test/change-plan', requireAuth, async (req, res) => {
     
     res.json({
       success: true,
-      message: `✅ Plano alterado para ${plan.toUpperCase()} com sucesso!`,
+      message: `✅ Plano alterado para ${plan.toUpperCase()} com sucesso! (MODO DEV)`,
       plan: plan,
-      test_mode: process.env.NODE_ENV !== 'production',
+      test_mode: true,
       expires_at: expiresAt
     });
     
@@ -405,14 +414,24 @@ app.post('/api/test/change-plan', requireAuth, async (req, res) => {
   }
 });
 
-// ENDPOINT: Simular pagamento aprovado (funciona em desenvolvimento E produção)
+// ENDPOINT: Simular pagamento aprovado (APENAS EM DESENVOLVIMENTO)
 app.post('/api/payments/:id/simulate-payment', requireAuth, async (req, res) => {
   try {
+    // BLOQUEAR em produção - upgrade só via pagamento confirmado
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    if (!isDevelopment) {
+      console.error('❌ Tentativa de simular pagamento em produção!');
+      return res.status(403).json({ 
+        error: 'Este endpoint está desabilitado em produção. Faça o pagamento real para receber o upgrade.',
+        code: 'TEST_ENDPOINT_DISABLED'
+      });
+    }
+    
     const { id } = req.params;
     const userId = req.user.id;
     
     console.log('='.repeat(60));
-    console.log('🧪 API /api/payments/:id/simulate-payment');
+    console.log('🧪 API /api/payments/:id/simulate-payment (MODO DEV)');
     console.log('='.repeat(60));
     console.log('📋 Payment ID:', id);
     console.log('👤 User ID:', userId);
@@ -484,7 +503,7 @@ app.post('/api/payments/:id/simulate-payment', requireAuth, async (req, res) => 
     
     res.json({
       success: true,
-      message: `✅ Pagamento SIMULADO aprovado com sucesso! Plano ${planToActivate.toUpperCase()} ativado!`,
+      message: `✅ Pagamento SIMULADO aprovado com sucesso! Plano ${planToActivate.toUpperCase()} ativado! (MODO DEV)`,
       status: 'paid',
       plan: planToActivate,
       amount: payment.amount,
@@ -561,6 +580,12 @@ app.post('/api/webhooks/abacatepay', async (req, res) => {
       const payment = await db.getPaymentById(result.paymentId);
       
       if (payment && payment.status === 'pending') {
+        // Verificar se já foi processado (evitar duplicação)
+        if (payment.status === 'approved') {
+          console.log('⚠️ Pagamento já foi aprovado anteriormente, ignorando webhook duplicado');
+          return res.json({ received: true, message: 'Payment already processed' });
+        }
+        
         // Identificar plano pelo valor pago (segurança adicional)
         let planToActivate = payment.plan;
         const planByAmount = getPlanByAmount(payment.amount);
@@ -571,21 +596,31 @@ app.post('/api/webhooks/abacatepay', async (req, res) => {
         }
         
         console.log(`✅ Ativando plano: ${planToActivate} (Valor: R$ ${payment.amount})`);
+        console.log('   Payment ID:', result.paymentId);
+        console.log('   Billing ID:', result.billingId);
+        console.log('   User ID:', payment.user_id);
         
-        // Aprovar pagamento
+        // IMPORTANTE: Aprovar pagamento PRIMEIRO
         await db.approvePayment(result.paymentId, 1, result.billingId); // Admin ID = 1 (sistema)
+        console.log('✅ Pagamento aprovado no banco');
         
-        // Atualizar plano do usuário com o plano correto baseado no valor
+        // Depois atualizar plano do usuário
         await db.updateUserPlan(payment.user_id, planToActivate);
+        console.log('✅ Plano do usuário atualizado');
         
         // Criar assinatura (30 dias)
         const expiresAt = moment().add(30, 'days').toISOString();
         await db.createSubscription(payment.user_id, planToActivate, expiresAt);
+        console.log('✅ Assinatura criada');
         
-        console.log('✅ Plano atualizado automaticamente!');
+        console.log('='.repeat(60));
+        console.log('✅✅✅ UPGRADE APLICADO COM SUCESSO! ✅✅✅');
+        console.log('='.repeat(60));
         console.log('   User ID:', payment.user_id);
         console.log('   Plano:', planToActivate);
         console.log('   Valor pago: R$', payment.amount);
+        console.log('   Expira em:', expiresAt);
+        console.log('='.repeat(60));
         
         // Notificar usuário via WebSocket
         if (global.notifyClients) {
@@ -598,6 +633,10 @@ app.post('/api/webhooks/abacatepay', async (req, res) => {
             }
           });
         }
+      } else if (payment && payment.status === 'approved') {
+        console.log('ℹ️ Pagamento já estava aprovado, webhook duplicado ignorado');
+      } else {
+        console.error('❌ Pagamento não encontrado ou status inválido:', result.paymentId);
       }
     }
     
