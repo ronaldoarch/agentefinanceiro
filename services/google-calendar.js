@@ -141,11 +141,26 @@ async function getUserTokens(userId) {
       return null;
     }
 
-    return {
+    const tokens = {
       access_token: data.google_access_token,
       refresh_token: data.google_refresh_token,
       expiry_date: data.google_token_expiry
     };
+    
+    // Log para debug
+    if (tokens.expiry_date) {
+      const expiryDate = new Date(parseInt(tokens.expiry_date));
+      const agora = new Date();
+      const minutosRestantes = Math.round((tokens.expiry_date - Date.now()) / 1000 / 60);
+      console.log(`📊 Tokens do usuário ${userId}:`);
+      console.log(`   Access token: ${tokens.access_token ? 'presente' : 'ausente'}`);
+      console.log(`   Refresh token: ${tokens.refresh_token ? 'presente' : 'ausente'}`);
+      console.log(`   Expiry date: ${expiryDate.toISOString()}`);
+      console.log(`   Agora: ${agora.toISOString()}`);
+      console.log(`   Minutos restantes: ${minutosRestantes}`);
+    }
+    
+    return tokens;
   } catch (error) {
     console.error('❌ Erro ao buscar tokens:', error);
     return null;
