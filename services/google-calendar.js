@@ -493,29 +493,10 @@ async function getConnectedEmail(userId) {
       console.log('⚠️ Erro 401 ao buscar email do Google (token pode estar expirado)');
       console.log('⚠️ Tentando renovar token...');
       
-      // Tentar renovar o token antes de desconectar
-      try {
-        const tokens = await getUserTokens(userId);
-        if (tokens && tokens.refresh_token) {
-          const oauth2Client = require('./google-calendar').oauth2Client || 
-                               require('googleapis').google.auth.OAuth2Client;
-          
-          // Não desconectar imediatamente, apenas retornar null
-          // O token será renovado na próxima tentativa
-          console.log('⚠️ Token expirado, mas refresh token existe. Será renovado na próxima tentativa.');
-          return null;
-        }
-      } catch (refreshError) {
-        console.log('⚠️ Não foi possível renovar token');
-      }
-      
-      // Só desconectar se realmente não tiver refresh token
-      console.log('⚠️ Token inválido e sem refresh token, desconectando...');
-      try {
-        await disconnectGoogleCalendar(userId);
-      } catch (disconnectError) {
-        // Ignorar erros ao desconectar
-      }
+      // Não desconectar automaticamente - apenas retornar null
+      // O token será renovado automaticamente na próxima tentativa de uso
+      // Se realmente estiver inválido, será tratado quando tentar usar
+      console.log('⚠️ Token pode estar expirado, mas mantendo conexão. Será renovado na próxima tentativa.');
       return null;
     }
     
