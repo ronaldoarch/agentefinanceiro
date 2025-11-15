@@ -579,12 +579,19 @@ app.post('/api/webhooks/abacatepay', async (req, res) => {
       // Buscar pagamento no banco
       const payment = await db.getPaymentById(result.paymentId);
       
-      if (payment && payment.status === 'pending') {
-        // Verificar se já foi processado (evitar duplicação)
-        if (payment.status === 'approved') {
-          console.log('⚠️ Pagamento já foi aprovado anteriormente, ignorando webhook duplicado');
-          return res.json({ received: true, message: 'Payment already processed' });
-        }
+      if (!payment) {
+        console.error('❌ Pagamento não encontrado:', result.paymentId);
+        return res.json({ received: true, error: 'Payment not found' });
+      }
+      
+      // Verificar se já foi processado (evitar duplicação)
+      if (payment.status === 'approved') {
+        console.log('⚠️ Pagamento já foi aprovado anteriormente, ignorando webhook duplicado');
+        return res.json({ received: true, message: 'Payment already processed' });
+      }
+      
+      // Processar apenas se estiver pendente
+      if (payment.status === 'pending') {
         
         // Identificar plano pelo valor pago (segurança adicional)
         let planToActivate = payment.plan;
