@@ -1057,11 +1057,15 @@ app.get('/api/google/auth-url', requireAuth, (req, res) => {
 // Callback do OAuth (recebe o código de autorização)
 app.get('/api/google/callback', async (req, res) => {
   try {
+    console.log('='.repeat(60));
     console.log('📅 Google OAuth Callback recebido!');
+    console.log('📅 Query params:', JSON.stringify(req.query, null, 2));
+    
     const { code, state } = req.query; // state contém o userId
     
     console.log('🔍 Code:', code ? 'presente' : 'ausente');
     console.log('🔍 State (userId):', state);
+    console.log('🔍 Tipo do state:', typeof state);
     
     if (!code) {
       console.error('❌ Código de autorização não fornecido');
@@ -1073,11 +1077,6 @@ app.get('/api/google/callback', async (req, res) => {
       return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/?google_error=missing_state`);
     }
 
-    // Trocar código por tokens
-    console.log('🔄 Trocando código por tokens...');
-    const tokens = await googleCalendarService.getTokensFromCode(code);
-    console.log('✅ Tokens recebidos do Google!');
-    
     // Converter userId para número (state vem como string)
     const userId = parseInt(state, 10);
     if (isNaN(userId)) {
@@ -1085,18 +1084,39 @@ app.get('/api/google/callback', async (req, res) => {
       return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/?google_error=invalid_user`);
     }
     
+    console.log('✅ userId convertido:', userId, '(tipo:', typeof userId, ')');
+    
+    // Trocar código por tokens
+    console.log('🔄 Trocando código por tokens...');
+    const tokens = await googleCalendarService.getTokensFromCode(code);
+    console.log('✅ Tokens recebidos do Google!');
+    console.log('📊 Tokens:', {
+      access_token: tokens.access_token ? 'presente' : 'ausente',
+      refresh_token: tokens.refresh_token ? 'presente' : 'ausente',
+      expiry_date: tokens.expiry_date || 'não fornecido'
+    });
+    
     // Salvar tokens no banco
     console.log('💾 Salvando tokens no banco para usuário:', userId);
     await googleCalendarService.saveUserTokens(userId, tokens);
     console.log('✅ Tokens salvos com sucesso!');
+    
+    // Verificar se foi salvo corretamente
+    console.log('🔍 Verificando se foi salvo corretamente...');
+    const verificado = await googleCalendarService.isConnected(userId);
+    console.log('📊 Status após salvar:', verificado ? 'CONECTADO ✅' : 'DESCONECTADO ❌');
+    
+    console.log('='.repeat(60));
 
     // Redirecionar para o frontend com sucesso
     console.log('🔄 Redirecionando para frontend...');
     res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/?google_connected=true`);
   } catch (error) {
+    console.error('='.repeat(60));
     console.error('❌ Erro no callback do Google:', error);
     console.error('❌ Detalhes:', error.message);
     console.error('❌ Stack:', error.stack);
+    console.error('='.repeat(60));
     res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/?google_error=true`);
   }
 });

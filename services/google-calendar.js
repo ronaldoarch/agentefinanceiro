@@ -67,7 +67,16 @@ async function saveUserTokens(userId, tokens) {
     console.log('   Refresh Token:', tokens.refresh_token ? 'presente' : 'ausente');
     console.log('   Expiry Date:', expiryDate);
     
-    const { error } = await supabase
+    console.log('💾 Executando UPDATE no Supabase...');
+    console.log('   Tabela: users');
+    console.log('   WHERE id =', userId);
+    console.log('   Valores a atualizar:');
+    console.log('     - google_access_token:', tokens.access_token ? 'presente' : 'null');
+    console.log('     - google_refresh_token:', tokens.refresh_token ? 'presente' : 'null');
+    console.log('     - google_token_expiry:', expiryDate);
+    console.log('     - google_calendar_connected: true');
+    
+    const { data, error } = await supabase
       .from('users')
       .update({
         google_access_token: tokens.access_token || null,
@@ -75,11 +84,25 @@ async function saveUserTokens(userId, tokens) {
         google_token_expiry: expiryDate ? parseInt(expiryDate) : null,
         google_calendar_connected: true
       })
-      .eq('id', userId);
+      .eq('id', userId)
+      .select();
 
     if (error) {
       console.error('❌ Erro do Supabase ao salvar tokens:', error);
+      console.error('❌ Código do erro:', error.code);
+      console.error('❌ Mensagem:', error.message);
       throw error;
+    }
+    
+    console.log('✅ UPDATE executado com sucesso!');
+    console.log('📊 Linhas afetadas:', data ? data.length : 0);
+    if (data && data.length > 0) {
+      console.log('📊 Dados atualizados:', {
+        id: data[0].id,
+        google_calendar_connected: data[0].google_calendar_connected,
+        tem_access_token: !!data[0].google_access_token,
+        tem_refresh_token: !!data[0].google_refresh_token
+      });
     }
     
     console.log(`✅ Tokens do Google salvos para usuário ${userId}`);
