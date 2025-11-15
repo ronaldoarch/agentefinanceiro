@@ -170,30 +170,44 @@ async function getAuthenticatedClient(userId) {
   
   // Verificar se o token expirou e renovar se necessário
   const agora = Date.now();
-  const tokenExpirado = tokens.expiry_date && tokens.expiry_date < agora;
+  // Adicionar margem de 5 minutos antes de expirar
+  const tokenExpirado = tokens.expiry_date && (tokens.expiry_date - agora) < (5 * 60 * 1000);
   
   if (tokenExpirado) {
-    console.log('🔄 Token do Google Calendar expirado, tentando renovar...');
+    console.log('🔄 Token do Google Calendar expirado ou próximo de expirar, renovando...');
     try {
       if (!tokens.refresh_token) {
         // Sem refresh token, precisa reconectar
-        await disconnectGoogleCalendar(userId);
+        console.log('⚠️ Refresh token não encontrado. Usuário precisa reconectar.');
         throw new Error('Refresh token não encontrado. Usuário precisa reconectar.');
       }
       
+      // Configurar tokens no cliente (incluindo refresh token)
+      oauth2Client.setCredentials({
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        expiry_date: tokens.expiry_date
+      });
+      
+      // Renovar token usando refresh token
+      console.log('🔄 Chamando refreshAccessToken()...');
       const { credentials } = await oauth2Client.refreshAccessToken();
       console.log('✅ Token renovado com sucesso!');
+      console.log('📊 Novo access_token:', credentials.access_token ? 'presente' : 'ausente');
+      console.log('📊 Novo expiry_date:', credentials.expiry_date);
+      
+      // Salvar novos tokens no banco
+      console.log('💾 Salvando tokens renovados no banco...');
       await saveUserTokens(userId, credentials);
+      
+      // Configurar novos tokens no cliente
       oauth2Client.setCredentials(credentials);
+      console.log('✅ Cliente OAuth configurado com novos tokens');
     } catch (refreshError) {
-      // Erro ao renovar - desconectar silenciosamente
-      console.log('⚠️ Não foi possível renovar token, desconectando...');
-      try {
-        await disconnectGoogleCalendar(userId);
-      } catch (disconnectError) {
-        // Ignorar erros ao desconectar
-      }
-      throw new Error('Token expirado. Por favor, reconecte o Google Calendar.');
+      console.error('❌ Erro ao renovar token:', refreshError.message);
+      // Não desconectar automaticamente - apenas lançar erro
+      // O erro será tratado pelo código que chama esta função
+      throw new Error('Token expirado e não foi possível renovar. Por favor, reconecte o Google Calendar.');
     }
   }
 
@@ -488,15 +502,11 @@ async function getConnectedEmail(userId) {
     const response = await oauth2.userinfo.get();
     return response.data.email;
   } catch (error) {
-    // Se for erro 401, o token pode estar expirado ou inválido
+    // Se for erro 401, o token pode estar expirado
     if (error.code === 401 || error.status === 401) {
-      console.log('⚠️ Erro 401 ao buscar email do Google (token pode estar expirado)');
-      console.log('⚠️ Tentando renovar token...');
-      
-      // Não desconectar automaticamente - apenas retornar null
-      // O token será renovado automaticamente na próxima tentativa de uso
-      // Se realmente estiver inválido, será tratado quando tentar usar
-      console.log('⚠️ Token pode estar expirado, mas mantendo conexão. Será renovado na próxima tentativa.');
+      console.log('⚠️ Erro 401 ao buscar email (token expirado). Token será renovado automaticamente na próxima tentativa.');
+      // Não desconectar - apenas retornar null
+      // O token será renovado automaticamente pelo getAuthenticatedClient na próxima vez
       return null;
     }
     
