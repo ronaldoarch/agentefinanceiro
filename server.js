@@ -1361,6 +1361,56 @@ app.post('/api/chat', requireAuth, async (req, res) => {
       console.error('Stack:', error.stack);
     }
     
+    // DETECTAR E CRIAR EVENTOS NO GOOGLE CALENDAR
+    let eventosDetectados = [];
+    let eventosCriados = [];
+    
+    try {
+      // Verificar se o usuário está conectado ao Google Calendar
+      const isGoogleConnected = await googleCalendarService.isConnected(userId);
+      
+      if (isGoogleConnected) {
+        console.log('📅 Verificando se é um evento para Google Calendar...');
+        eventosDetectados = await openaiService.detectarEventoGoogleCalendar(message);
+        console.log('📅 Resultado da detecção de eventos:', JSON.stringify(eventosDetectados, null, 2));
+        
+        if (eventosDetectados && eventosDetectados.length > 0) {
+          console.log(`📅 ${eventosDetectados.length} EVENTO(S) DETECTADO(S) PARA GOOGLE CALENDAR!`);
+          
+          // Criar TODOS os eventos no Google Calendar
+          for (let i = 0; i < eventosDetectados.length; i++) {
+            const evento = eventosDetectados[i];
+            console.log(`📅 [${i+1}/${eventosDetectados.length}] Criando evento:`, JSON.stringify(evento));
+            
+            try {
+              const resultado = await googleCalendarService.createGenericCalendarEvent(userId, {
+                titulo: evento.titulo,
+                descricao: evento.descricao,
+                dataInicio: evento.dataInicio,
+                dataFim: evento.dataFim,
+                local: evento.local
+              });
+              
+              console.log(`✅ EVENTO CRIADO NO GOOGLE CALENDAR! ID: ${resultado.eventId}`);
+              eventosCriados.push({ id: resultado.eventId, ...evento, htmlLink: resultado.htmlLink });
+            } catch (saveError) {
+              console.error(`❌ ERRO ao criar evento ${i+1}:`, saveError.message);
+              console.error('Stack:', saveError.stack);
+            }
+          }
+          
+          console.log(`📅 ${eventosCriados.length} eventos criados no Google Calendar!`);
+        } else {
+          console.log('ℹ️ Não é um evento para Google Calendar');
+        }
+      } else {
+        console.log('ℹ️ Usuário não está conectado ao Google Calendar');
+      }
+    } catch (error) {
+      console.error('❌ ERRO ao detectar/criar evento Google Calendar:', error);
+      console.error('Stack:', error.stack);
+    }
+    
     // Verificar se é APENAS uma transação (sem pergunta) ou uma pergunta real
     const mensagemLower = message.toLowerCase();
     const isTransacaoSimples = transacoesSalvas.length > 0;
@@ -1425,8 +1475,8 @@ app.post('/api/chat', requireAuth, async (req, res) => {
       console.log('✅ Resposta da IA recebida');
     }
     
-    // Se salvou transações ou criou lembretes, adicionar confirmação
-    if (transacoesSalvas.length > 0 || lembretesCriados.length > 0) {
+    // Se salvou transações, criou lembretes ou eventos, adicionar confirmação
+    if (transacoesSalvas.length > 0 || lembretesCriados.length > 0 || eventosCriados.length > 0) {
       let confirmacao = '';
       
       // Confirmação de transações (apenas detalhes, sem duplicar mensagem)
@@ -1470,6 +1520,23 @@ app.post('/api/chat', requireAuth, async (req, res) => {
         confirmacao += `📅 **Veja todos na aba Lembretes acima!**`;
       }
       
+      // Confirmação de eventos no Google Calendar
+      if (eventosCriados.length > 0) {
+        if (confirmacao) confirmacao += '\n\n';
+        confirmacao += `📅 **${eventosCriados.length} evento(s) criado(s) no Google Agenda!**\n\n`;
+        
+        eventosCriados.forEach(e => {
+          const dataInicio = new Date(e.dataInicio);
+          const dataFormatada = moment(dataInicio).format('DD/MM/YYYY [às] HH:mm');
+          confirmacao += `- 📆 ${e.titulo} - ${dataFormatada}`;
+          if (e.local) confirmacao += ` (${e.local})`;
+          confirmacao += `\n`;
+        });
+        
+        confirmacao += `\n✅ **Eventos adicionados à sua agenda do Google!**\n`;
+        confirmacao += `📅 **Acesse seu Google Calendar para ver todos os eventos.**`;
+      }
+      
       // Salvar resposta da IA com confirmação
       await db.addChatMessage(userId, 'assistant', resposta + confirmacao);
       
@@ -1478,6 +1545,7 @@ app.post('/api/chat', requireAuth, async (req, res) => {
         message: resposta + confirmacao,
         transacoes: transacoesSalvas,
         lembretes: lembretesCriados,
+        eventos: eventosCriados,
         saved: true
       });
     }

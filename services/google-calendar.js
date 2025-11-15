@@ -144,7 +144,7 @@ async function getAuthenticatedClient(userId) {
 }
 
 /**
- * Cria um evento no Google Calendar do usuário
+ * Cria um evento no Google Calendar do usuário (para lembretes financeiros)
  */
 async function createCalendarEvent(userId, eventData) {
   try {
@@ -192,6 +192,76 @@ async function createCalendarEvent(userId, eventData) {
     };
   } catch (error) {
     console.error('❌ Erro ao criar evento no Google Calendar:', error);
+    
+    // Se o erro for de autenticação, marcar como desconectado
+    if (error.code === 401 || error.code === 403) {
+      await disconnectGoogleCalendar(userId);
+    }
+    
+    throw error;
+  }
+}
+
+/**
+ * Cria um evento genérico no Google Calendar (para eventos/compromissos)
+ * @param {number} userId - ID do usuário
+ * @param {Object} eventData - Dados do evento { titulo, descricao, dataInicio, dataFim, local }
+ */
+async function createGenericCalendarEvent(userId, eventData) {
+  try {
+    console.log(`📅 Criando evento genérico no Google Calendar para usuário ${userId}`);
+    console.log('📅 Dados do evento:', JSON.stringify(eventData, null, 2));
+    
+    const auth = await getAuthenticatedClient(userId);
+    const calendar = google.calendar({ version: 'v3', auth });
+
+    // Se dataFim não foi fornecida, usar 1 hora depois do início
+    let dataFim = eventData.dataFim;
+    if (!dataFim && eventData.dataInicio) {
+      const inicio = new Date(eventData.dataInicio);
+      inicio.setHours(inicio.getHours() + 1);
+      dataFim = inicio.toISOString();
+    }
+
+    const event = {
+      summary: eventData.titulo,
+      description: eventData.descricao || '',
+      start: {
+        dateTime: eventData.dataInicio,
+        timeZone: 'America/Sao_Paulo'
+      },
+      end: {
+        dateTime: dataFim || eventData.dataInicio,
+        timeZone: 'America/Sao_Paulo'
+      },
+      reminders: {
+        useDefault: false,
+        overrides: [
+          { method: 'popup', minutes: 1440 }, // 1 dia antes
+          { method: 'popup', minutes: 30 } // 30 min antes
+        ]
+      }
+    };
+
+    // Adicionar local se fornecido
+    if (eventData.local) {
+      event.location = eventData.local;
+    }
+
+    const response = await calendar.events.insert({
+      calendarId: 'primary',
+      resource: event
+    });
+
+    console.log(`✅ Evento genérico criado no Google Calendar! ID: ${response.data.id}`);
+    
+    return {
+      success: true,
+      eventId: response.data.id,
+      htmlLink: response.data.htmlLink
+    };
+  } catch (error) {
+    console.error('❌ Erro ao criar evento genérico no Google Calendar:', error);
     
     // Se o erro for de autenticação, marcar como desconectado
     if (error.code === 401 || error.code === 403) {
@@ -337,6 +407,7 @@ module.exports = {
   saveUserTokens,
   getUserTokens,
   createCalendarEvent,
+  createGenericCalendarEvent,
   updateCalendarEvent,
   deleteCalendarEvent,
   isConnected,

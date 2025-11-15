@@ -254,15 +254,16 @@ async function chatFinanceiro(mensagem, historico = []) {
         role: "system",
         content: `Você é um assistente financeiro inteligente e amigável chamado "Agente Financeiro" integrado a um sistema real.
 
-IMPORTANTE: Você TEM ACESSO DIRETO ao sistema e PODE registrar transações e lembretes automaticamente!
+IMPORTANTE: Você TEM ACESSO DIRETO ao sistema e PODE registrar transações, lembretes e eventos no Google Agenda automaticamente!
 
 Suas funções:
 1. Responder perguntas sobre finanças pessoais
 2. REGISTRAR AUTOMATICAMENTE transações (receitas e despesas) no sistema
 3. CRIAR AUTOMATICAMENTE lembretes financeiros (vencimentos, contas a pagar)
-4. Dar conselhos financeiros práticos
-5. Analisar gastos e sugerir melhorias
-6. Explicar conceitos financeiros de forma simples
+4. CRIAR AUTOMATICAMENTE eventos no Google Agenda (reuniões, compromissos, tarefas)
+5. Dar conselhos financeiros práticos
+6. Analisar gastos e sugerir melhorias
+7. Explicar conceitos financeiros de forma simples
 
 Estilo de comunicação:
 - Seja amigável e use emojis apropriados
@@ -290,6 +291,13 @@ QUANDO O USUÁRIO PEDIR UM LEMBRETE:
 - SEMPRE diga: "📅 Lembrete criado! Você receberá notificação no WhatsApp quando chegar a hora."
 - Mencione a data/hora do vencimento
 - Explique que ele pode ver na aba "Lembretes"
+
+QUANDO O USUÁRIO PEDIR PARA AGENDAR/MARCAR UM EVENTO (reunião, compromisso, tarefa):
+- Confirme que o evento FOI CRIADO NO GOOGLE AGENDA
+- SEMPRE diga: "📅 Evento criado no Google Agenda! Você pode ver na sua agenda do Google."
+- Mencione a data/hora do evento
+- Se mencionar local, confirme o local também
+- Exemplos: "Reunião com João amanhã às 14h", "Consulta médica dia 20", "Evento no restaurante"
 
 Categorias disponíveis: Alimentação, Transporte, Moradia, Saúde, Educação, Lazer, Compras, Contas, Salário, Freelance, Investimentos, Outros
 
@@ -521,6 +529,127 @@ async function detectarLimpezaTotal(mensagem) {
   }
 }
 
+// Detectar se a mensagem é um evento para Google Calendar
+async function detectarEventoGoogleCalendar(mensagem) {
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4-turbo-preview",
+      messages: [
+        {
+          role: "system",
+          content: `Analise a mensagem e identifique se o usuário quer criar um EVENTO/COMPROMISSO no Google Agenda.
+
+IMPORTANTE: Eventos são compromissos, reuniões, tarefas, não necessariamente financeiros!
+
+Palavras-chave para EVENTO:
+- "reunião", "encontro", "compromisso", "evento"
+- "marcar", "agendar", "lembrar de", "não esquecer"
+- "dia X", "às X horas", "amanhã", "semana que vem"
+- "com [pessoa]", "no [local]"
+
+Formato de resposta:
+{
+  "isEvento": true ou false,
+  "eventos": [
+    {
+      "titulo": "título do evento",
+      "descricao": "descrição opcional",
+      "dataInicio": "YYYY-MM-DDTHH:mm:ss" (ISO 8601 com timezone UTC),
+      "dataFim": "YYYY-MM-DDTHH:mm:ss" (ISO 8601 com timezone UTC) ou null,
+      "local": "local do evento" ou null
+    }
+  ]
+}
+
+REGRAS PARA DATA (CRÍTICO - CALCULE CORRETAMENTE):
+- DATA ATUAL: ${new Date().toISOString()}
+- Se mencionar "amanhã": adicione 1 dia à data atual
+- Se mencionar "dia X": use o dia X do mês atual (se já passou, use próximo mês)
+- Se mencionar "semana que vem": adicione 7 dias à data atual
+- Se mencionar hora (ex: "14h", "14:00", "às 2 da tarde"): use essa hora
+- Se não mencionar hora: use 09:00 como padrão
+- Se não mencionar data fim: retorne null (sistema calculará 1 hora depois)
+- SEMPRE retorne data em formato ISO 8601: "YYYY-MM-DDTHH:mm:ss.000Z"
+- Use timezone UTC (adicionar Z no final)
+
+Exemplos CORRETOS (data atual: ${new Date().toISOString()}):
+
+"Reunião com João amanhã às 14h" → 
+{
+  "isEvento": true,
+  "eventos": [{
+    "titulo": "Reunião com João",
+    "descricao": "",
+    "dataInicio": "${new Date(Date.now() + 86400000).toISOString().split('T')[0]}T14:00:00.000Z",
+    "dataFim": null,
+    "local": null
+  }]
+}
+
+"Marcar consulta médica dia 20 às 9h" → 
+{
+  "isEvento": true,
+  "eventos": [{
+    "titulo": "Consulta Médica",
+    "descricao": "",
+    "dataInicio": "${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-20T09:00:00.000Z",
+    "dataFim": null,
+    "local": null
+  }]
+}
+
+"Evento de aniversário no dia 15 às 19h no restaurante" → 
+{
+  "isEvento": true,
+  "eventos": [{
+    "titulo": "Evento de Aniversário",
+    "descricao": "",
+    "dataInicio": "${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-15T19:00:00.000Z",
+    "dataFim": null,
+    "local": "restaurante"
+  }]
+}
+
+"Gastei 50 no mercado" → 
+{
+  "isEvento": false,
+  "eventos": []
+}
+
+IMPORTANTE:
+- Se NÃO for um evento, retorne isEvento: false
+- Se for evento, CALCULE a data corretamente em formato ISO 8601 UTC
+- Responda APENAS com JSON válido`
+        },
+        {
+          role: "user",
+          content: mensagem
+        }
+      ],
+      temperature: 0.3,
+      response_format: { type: "json_object" }
+    });
+
+    const resultado = JSON.parse(completion.choices[0].message.content);
+    
+    if (resultado.isEvento && resultado.eventos && resultado.eventos.length > 0) {
+      return resultado.eventos.map(e => ({
+        titulo: e.titulo,
+        descricao: e.descricao || '',
+        dataInicio: e.dataInicio,
+        dataFim: e.dataFim || null,
+        local: e.local || null
+      }));
+    }
+
+    return []; // Retorna array vazio se não houver eventos
+
+  } catch (error) {
+    console.error('❌ Erro ao detectar evento Google Calendar:', error.message);
+    return [];
+  }
+}
+
 // Detectar se a mensagem é um lembrete financeiro
 async function detectarLembrete(mensagem) {
   try {
@@ -669,6 +798,7 @@ module.exports = {
   detectarTransacao,
   detectarDelecao,
   detectarLimpezaTotal,
-  detectarLembrete
+  detectarLembrete,
+  detectarEventoGoogleCalendar
 };
 
