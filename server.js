@@ -311,20 +311,9 @@ app.get('/api/payments/:id/status', requireAuth, async (req, res) => {
     }
     
     return res.json({
-          status: 'paid',
-          paid_at: statusResult.paidAt,
-          plan: planToActivate
-        });
-      }
-      
-      return res.json({
-        status: statusResult.status?.toLowerCase() || 'pending',
-        expires_at: statusResult.expiresAt
-      });
-    }
-    
-    res.json({
-      status: 'pending'
+      status: 'pending',
+      external_status: externalStatus,
+      message: 'Aguardando pagamento. Após o pagamento, o upgrade será aplicado automaticamente.'
     });
     
   } catch (error) {
