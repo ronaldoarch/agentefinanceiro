@@ -411,13 +411,22 @@ async function isConnected(userId) {
     }
     
     // Verificar se tem token E se está marcado como conectado
-    const temToken = data.google_access_token && data.google_access_token.trim() !== '';
+    const temToken = data.google_access_token && 
+                     typeof data.google_access_token === 'string' && 
+                     data.google_access_token.trim() !== '';
     const marcadoConectado = data.google_calendar_connected === true;
     
     console.log(`📊 Usuário ${userId}: temToken=${temToken}, marcadoConectado=${marcadoConectado}`);
+    console.log(`📊 Dados do banco:`, {
+      google_access_token: data.google_access_token ? 'presente' : 'null/undefined',
+      google_calendar_connected: data.google_calendar_connected,
+      tipo_access_token: typeof data.google_access_token
+    });
     
     // Retornar true apenas se tiver token E estiver marcado como conectado
-    return temToken && marcadoConectado;
+    const resultado = temToken && marcadoConectado;
+    console.log(`📊 Resultado isConnected: ${resultado}`);
+    return resultado;
   } catch (error) {
     console.error('❌ Erro ao verificar conexão:', error);
     return false;
