@@ -1128,7 +1128,10 @@ app.get('/api/google/status', requireAuth, async (req, res) => {
     console.log(`📊 Verificando status do Google Calendar para usuário ${userId}`);
     
     let connected = await googleCalendarService.isConnected(userId);
-    console.log(`📊 Status inicial (isConnected): ${connected}`);
+    console.log(`📊 Status inicial (isConnected): ${connected} (tipo: ${typeof connected})`);
+    
+    // Garantir que connected é boolean
+    connected = !!connected;
     
     let email = null;
     if (connected) {

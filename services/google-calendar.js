@@ -410,22 +410,30 @@ async function isConnected(userId) {
       return false;
     }
     
+    if (!data) {
+      console.log(`📊 Usuário ${userId} não encontrado no banco`);
+      return false;
+    }
+    
     // Verificar se tem token E se está marcado como conectado
     const temToken = data.google_access_token && 
                      typeof data.google_access_token === 'string' && 
-                     data.google_access_token.trim() !== '';
+                     data.google_access_token.trim() !== '' &&
+                     data.google_access_token !== 'null';
     const marcadoConectado = data.google_calendar_connected === true;
     
     console.log(`📊 Usuário ${userId}: temToken=${temToken}, marcadoConectado=${marcadoConectado}`);
     console.log(`📊 Dados do banco:`, {
       google_access_token: data.google_access_token ? 'presente' : 'null/undefined',
       google_calendar_connected: data.google_calendar_connected,
-      tipo_access_token: typeof data.google_access_token
+      tipo_access_token: typeof data.google_access_token,
+      valor_access_token: data.google_access_token ? (data.google_access_token.substring(0, 20) + '...') : 'null'
     });
     
     // Retornar true apenas se tiver token E estiver marcado como conectado
-    const resultado = temToken && marcadoConectado;
-    console.log(`📊 Resultado isConnected: ${resultado}`);
+    // Garantir que sempre retorna boolean
+    const resultado = !!(temToken && marcadoConectado);
+    console.log(`📊 Resultado isConnected: ${resultado} (tipo: ${typeof resultado})`);
     return resultado;
   } catch (error) {
     console.error('❌ Erro ao verificar conexão:', error);
