@@ -574,16 +574,27 @@ IMPORTANTE SOBRE EVENTOS RECORRENTES:
 - Se mencionar "todo mês" → recorrencia: "MONTHLY"
 - Se for evento único (sem repetição) → recorrencia: null
 
+IMPORTANTE SOBRE ROTINAS COM MÚLTIPLOS BLOCOS:
+- Se o usuário mencionar uma rotina com vários blocos/tarefas (ex: "bloco 1", "bloco 2", lista numerada)
+- Crie UM evento SEPARADO para CADA bloco/tarefa
+- Cada evento deve ter seu próprio horário de início e fim
+- Todos os eventos devem ter a mesma recorrencia e diasSemana
+- Exemplo: "Rotina de segunda a quinta às 9h: 1. Abertura (9h-9:15), 2. Análise (9:15-9:40)"
+  → Crie 2 eventos: um para "Abertura" e outro para "Análise", ambos recorrentes segunda a quinta
+
 REGRAS PARA DATA (CRÍTICO - CALCULE CORRETAMENTE):
 - DATA ATUAL: ${new Date().toISOString()}
 - Se mencionar "amanhã": adicione 1 dia à data atual
 - Se mencionar "dia X": use o dia X do mês atual (se já passou, use próximo mês)
 - Se mencionar "semana que vem": adicione 7 dias à data atual
 - Se mencionar hora (ex: "14h", "14:00", "às 2 da tarde"): use essa hora
+- Se mencionar "por volta das Xh" ou "flex entre X e Y": use a hora inicial (ex: "por volta das 9h" → 09:00)
 - Se não mencionar hora: use 09:00 como padrão
-- Se não mencionar data fim: retorne null (sistema calculará 1 hora depois)
+- Se não mencionar data fim: calcule baseado na duração mencionada (ex: "15 min" → adicione 15 minutos)
+- Se mencionar duração (ex: "10 a 15 min", "20 a 30 min"): use a duração MÁXIMA para calcular dataFim
 - SEMPRE retorne data em formato ISO 8601: "YYYY-MM-DDTHH:mm:ss.000Z"
 - Use timezone UTC (adicionar Z no final)
+- Para rotinas semanais (ex: "segunda a quinta"): use a PRÓXIMA segunda-feira como dataInicio
 
 Exemplos CORRETOS (data atual: ${new Date().toISOString()}):
 
@@ -629,22 +640,32 @@ Exemplos CORRETOS (data atual: ${new Date().toISOString()}):
   "eventos": []
 }
 
-"Rotina diária de segunda a quinta às 9h com blocos de tarefas" →
+"Rotina diária de segunda a quinta às 9h: 1. Abertura (10-15 min), 2. Verificar saldos (15-25 min)" →
 {
   "isEvento": true,
   "eventos": [
     {
       "titulo": "Abertura do dia",
-      "descricao": "Rotina diária",
+      "descricao": "Rotina diária - Abertura do dia",
       "dataInicio": "[próxima segunda às 09:00]",
       "dataFim": "[próxima segunda às 09:15]",
       "local": null,
       "recorrencia": "WEEKLY",
       "diasSemana": ["MO","TU","WE","TH"]
+    },
+    {
+      "titulo": "Verificar saldos das contas de anúncios",
+      "descricao": "Rotina diária - Verificar saldos das contas de anúncios",
+      "dataInicio": "[próxima segunda às 09:15]",
+      "dataFim": "[próxima segunda às 09:40]",
+      "local": null,
+      "recorrencia": "WEEKLY",
+      "diasSemana": ["MO","TU","WE","TH"]
     }
-    // ... mais eventos para cada bloco
   ]
 }
+
+IMPORTANTE: Se o usuário listar vários blocos numerados, crie um evento para cada um, calculando os horários sequencialmente!
 
 IMPORTANTE:
 - Se NÃO for um evento, retorne isEvento: false
