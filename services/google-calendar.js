@@ -171,16 +171,22 @@ async function getAuthenticatedClient(userId) {
   // Verificar se o token expirou e renovar se necessário
   const agora = Date.now();
   // Adicionar margem de 5 minutos antes de expirar
-  const tokenExpirado = tokens.expiry_date && (tokens.expiry_date - agora) < (5 * 60 * 1000);
+  const tokenExpirado = !tokens.expiry_date || (tokens.expiry_date - agora) < (5 * 60 * 1000);
   
   if (tokenExpirado) {
-    console.log('🔄 Token do Google Calendar expirado ou próximo de expirar, renovando...');
+    console.log('🔄 Token do Google Calendar expirado ou próximo de expirar');
+    console.log('📊 Expiry date:', tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : 'não definido');
+    console.log('📊 Agora:', new Date(agora).toISOString());
+    console.log('📊 Diferença:', tokens.expiry_date ? Math.round((tokens.expiry_date - agora) / 1000 / 60) : 'N/A', 'minutos');
+    
     try {
       if (!tokens.refresh_token) {
         // Sem refresh token, precisa reconectar
         console.log('⚠️ Refresh token não encontrado. Usuário precisa reconectar.');
         throw new Error('Refresh token não encontrado. Usuário precisa reconectar.');
       }
+      
+      console.log('🔄 Iniciando renovação do token...');
       
       // Configurar tokens no cliente (incluindo refresh token)
       oauth2Client.setCredentials({
@@ -194,7 +200,7 @@ async function getAuthenticatedClient(userId) {
       const { credentials } = await oauth2Client.refreshAccessToken();
       console.log('✅ Token renovado com sucesso!');
       console.log('📊 Novo access_token:', credentials.access_token ? 'presente' : 'ausente');
-      console.log('📊 Novo expiry_date:', credentials.expiry_date);
+      console.log('📊 Novo expiry_date:', credentials.expiry_date ? new Date(credentials.expiry_date).toISOString() : 'não definido');
       
       // Salvar novos tokens no banco
       console.log('💾 Salvando tokens renovados no banco...');
@@ -205,10 +211,15 @@ async function getAuthenticatedClient(userId) {
       console.log('✅ Cliente OAuth configurado com novos tokens');
     } catch (refreshError) {
       console.error('❌ Erro ao renovar token:', refreshError.message);
+      console.error('❌ Stack:', refreshError.stack);
       // Não desconectar automaticamente - apenas lançar erro
       // O erro será tratado pelo código que chama esta função
       throw new Error('Token expirado e não foi possível renovar. Por favor, reconecte o Google Calendar.');
     }
+  } else {
+    console.log('✅ Token ainda válido, não precisa renovar');
+    console.log('📊 Expiry date:', new Date(tokens.expiry_date).toISOString());
+    console.log('📊 Válido por mais:', Math.round((tokens.expiry_date - agora) / 1000 / 60), 'minutos');
   }
 
   return oauth2Client;
@@ -496,22 +507,29 @@ async function disconnectGoogleCalendar(userId) {
  */
 async function getConnectedEmail(userId) {
   try {
+    console.log('📧 Tentando buscar email do Google Calendar...');
     const auth = await getAuthenticatedClient(userId);
     const oauth2 = google.oauth2({ version: 'v2', auth });
     
+    console.log('📧 Chamando userinfo.get()...');
     const response = await oauth2.userinfo.get();
+    console.log('✅ Email obtido com sucesso:', response.data.email);
     return response.data.email;
   } catch (error) {
+    console.error('❌ Erro ao buscar email do Google:', error.message);
+    console.error('❌ Código do erro:', error.code);
+    console.error('❌ Status do erro:', error.status);
+    
     // Se for erro 401, o token pode estar expirado
     if (error.code === 401 || error.status === 401) {
-      console.log('⚠️ Erro 401 ao buscar email (token expirado). Token será renovado automaticamente na próxima tentativa.');
+      console.log('⚠️ Erro 401: Token expirado ou inválido');
+      console.log('⚠️ O token será renovado automaticamente na próxima tentativa de uso');
       // Não desconectar - apenas retornar null
       // O token será renovado automaticamente pelo getAuthenticatedClient na próxima vez
       return null;
     }
     
     // Para outros erros, logar mas não quebrar
-    console.error('❌ Erro ao buscar email do Google:', error.message);
     return null;
   }
 }
