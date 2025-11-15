@@ -130,14 +130,33 @@ async function getAuthenticatedClient(userId) {
     throw new Error('Usuário não conectou Google Calendar');
   }
 
+  if (!tokens.access_token) {
+    throw new Error('Token de acesso não encontrado');
+  }
+
   oauth2Client.setCredentials(tokens);
   
   // Verificar se o token expirou e renovar se necessário
-  if (tokens.expiry_date && tokens.expiry_date < Date.now()) {
+  const agora = Date.now();
+  const tokenExpirado = tokens.expiry_date && tokens.expiry_date < agora;
+  
+  if (tokenExpirado) {
     console.log('🔄 Token expirado, renovando...');
-    const { credentials } = await oauth2Client.refreshAccessToken();
-    await saveUserTokens(userId, credentials);
-    oauth2Client.setCredentials(credentials);
+    try {
+      if (!tokens.refresh_token) {
+        throw new Error('Refresh token não encontrado. Usuário precisa reconectar.');
+      }
+      
+      const { credentials } = await oauth2Client.refreshAccessToken();
+      console.log('✅ Token renovado com sucesso!');
+      await saveUserTokens(userId, credentials);
+      oauth2Client.setCredentials(credentials);
+    } catch (refreshError) {
+      console.error('❌ Erro ao renovar token:', refreshError.message);
+      // Se falhar ao renovar, desconectar o usuário
+      await disconnectGoogleCalendar(userId);
+      throw new Error('Token expirado e não foi possível renovar. Por favor, reconecte o Google Calendar.');
+    }
   }
 
   return oauth2Client;
@@ -223,6 +242,11 @@ async function createGenericCalendarEvent(userId, eventData) {
       dataFim = inicio.toISOString();
     }
 
+    // Validar data de início
+    if (!eventData.dataInicio) {
+      throw new Error('Data de início é obrigatória');
+    }
+
     const event = {
       summary: eventData.titulo,
       description: eventData.descricao || '',
@@ -261,11 +285,14 @@ async function createGenericCalendarEvent(userId, eventData) {
       htmlLink: response.data.htmlLink
     };
   } catch (error) {
-    console.error('❌ Erro ao criar evento genérico no Google Calendar:', error);
+    console.error('❌ Erro ao criar evento genérico no Google Calendar:', error.message);
+    console.error('❌ Código do erro:', error.code);
     
     // Se o erro for de autenticação, marcar como desconectado
-    if (error.code === 401 || error.code === 403) {
+    if (error.code === 401 || error.code === 403 || error.status === 401 || error.status === 403) {
+      console.log('🔌 Token inválido, desconectando Google Calendar...');
       await disconnectGoogleCalendar(userId);
+      throw new Error('Token de autenticação inválido. Por favor, reconecte o Google Calendar.');
     }
     
     throw error;
@@ -396,7 +423,14 @@ async function getConnectedEmail(userId) {
     const response = await oauth2.userinfo.get();
     return response.data.email;
   } catch (error) {
-    console.error('❌ Erro ao buscar email:', error);
+    console.error('❌ Erro ao buscar email do Google:', error.message);
+    
+    // Se for erro 401, o token está inválido - desconectar
+    if (error.code === 401 || error.status === 401) {
+      console.log('🔌 Token inválido, desconectando Google Calendar...');
+      await disconnectGoogleCalendar(userId);
+    }
+    
     return null;
   }
 }
