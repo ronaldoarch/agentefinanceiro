@@ -292,12 +292,14 @@ QUANDO O USUÁRIO PEDIR UM LEMBRETE:
 - Mencione a data/hora do vencimento
 - Explique que ele pode ver na aba "Lembretes"
 
-QUANDO O USUÁRIO PEDIR PARA AGENDAR/MARCAR UM EVENTO (reunião, compromisso, tarefa):
-- Confirme que o evento FOI CRIADO NO GOOGLE AGENDA
-- SEMPRE diga: "📅 Evento criado no Google Agenda! Você pode ver na sua agenda do Google."
+QUANDO O USUÁRIO PEDIR PARA AGENDAR/MARCAR UM EVENTO (reunião, compromisso, tarefa, rotina):
+- Confirme que o(s) evento(s) FOI/FORAM CRIADO(S) NO GOOGLE AGENDA
+- SEMPRE diga: "📅 Evento(s) criado(s) no Google Agenda! Você pode ver na sua agenda do Google."
 - Mencione a data/hora do evento
 - Se mencionar local, confirme o local também
-- Exemplos: "Reunião com João amanhã às 14h", "Consulta médica dia 20", "Evento no restaurante"
+- Se for rotina/recorrente, mencione que é recorrente
+- Exemplos: "Reunião com João amanhã às 14h", "Consulta médica dia 20", "Rotina diária de segunda a quinta"
+- IMPORTANTE: Você PODE criar eventos no Google Agenda! NÃO diga que não pode!
 
 Categorias disponíveis: Alimentação, Transporte, Moradia, Saúde, Educação, Lazer, Compras, Contas, Salário, Freelance, Investimentos, Outros
 
@@ -537,15 +539,18 @@ async function detectarEventoGoogleCalendar(mensagem) {
       messages: [
         {
           role: "system",
-          content: `Analise a mensagem e identifique se o usuário quer criar um EVENTO/COMPROMISSO no Google Agenda.
+          content: `Analise a mensagem e identifique se o usuário quer criar EVENTO(S)/COMPROMISSO(S) no Google Agenda.
 
-IMPORTANTE: Eventos são compromissos, reuniões, tarefas, não necessariamente financeiros!
+IMPORTANTE: Eventos são compromissos, reuniões, tarefas, rotinas, blocos de tempo, não necessariamente financeiros!
 
 Palavras-chave para EVENTO:
-- "reunião", "encontro", "compromisso", "evento"
-- "marcar", "agendar", "lembrar de", "não esquecer"
+- "reunião", "encontro", "compromisso", "evento", "tarefa", "rotina"
+- "marcar", "agendar", "lembrar de", "não esquecer", "criar", "adicionar"
 - "dia X", "às X horas", "amanhã", "semana que vem"
 - "com [pessoa]", "no [local]"
+- "rotina diária", "rotina semanal", "bloco de tempo", "horário fixo"
+- "segunda a quinta", "todos os dias", "diariamente", "semanalmente"
+- "das X às Y", "de X horas até Y horas"
 
 Formato de resposta:
 {
@@ -556,10 +561,18 @@ Formato de resposta:
       "descricao": "descrição opcional",
       "dataInicio": "YYYY-MM-DDTHH:mm:ss" (ISO 8601 com timezone UTC),
       "dataFim": "YYYY-MM-DDTHH:mm:ss" (ISO 8601 com timezone UTC) ou null,
-      "local": "local do evento" ou null
+      "local": "local do evento" ou null,
+      "recorrencia": "DAILY|WEEKLY|MONTHLY|YEARLY" ou null (se for evento recorrente),
+      "diasSemana": ["MO","TU","WE","TH","FR","SA","SU"] ou null (para eventos semanais)
     }
   ]
 }
+
+IMPORTANTE SOBRE EVENTOS RECORRENTES:
+- Se mencionar "rotina diária", "todos os dias", "diariamente" → recorrencia: "DAILY"
+- Se mencionar "segunda a quinta", "toda segunda" → recorrencia: "WEEKLY", diasSemana: ["MO","TU","WE","TH"]
+- Se mencionar "todo mês" → recorrencia: "MONTHLY"
+- Se for evento único (sem repetição) → recorrencia: null
 
 REGRAS PARA DATA (CRÍTICO - CALCULE CORRETAMENTE):
 - DATA ATUAL: ${new Date().toISOString()}
@@ -616,9 +629,28 @@ Exemplos CORRETOS (data atual: ${new Date().toISOString()}):
   "eventos": []
 }
 
+"Rotina diária de segunda a quinta às 9h com blocos de tarefas" →
+{
+  "isEvento": true,
+  "eventos": [
+    {
+      "titulo": "Abertura do dia",
+      "descricao": "Rotina diária",
+      "dataInicio": "[próxima segunda às 09:00]",
+      "dataFim": "[próxima segunda às 09:15]",
+      "local": null,
+      "recorrencia": "WEEKLY",
+      "diasSemana": ["MO","TU","WE","TH"]
+    }
+    // ... mais eventos para cada bloco
+  ]
+}
+
 IMPORTANTE:
 - Se NÃO for um evento, retorne isEvento: false
 - Se for evento, CALCULE a data corretamente em formato ISO 8601 UTC
+- Se for rotina com múltiplos blocos, crie UM evento para CADA bloco
+- Para eventos recorrentes, use a PRIMEIRA ocorrência como dataInicio
 - Responda APENAS com JSON válido`
         },
         {
@@ -638,7 +670,9 @@ IMPORTANTE:
         descricao: e.descricao || '',
         dataInicio: e.dataInicio,
         dataFim: e.dataFim || null,
-        local: e.local || null
+        local: e.local || null,
+        recorrencia: e.recorrencia || null,
+        diasSemana: e.diasSemana || null
       }));
     }
 

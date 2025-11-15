@@ -302,7 +302,7 @@ async function createCalendarEvent(userId, eventData) {
 /**
  * Cria um evento genérico no Google Calendar (para eventos/compromissos)
  * @param {number} userId - ID do usuário
- * @param {Object} eventData - Dados do evento { titulo, descricao, dataInicio, dataFim, local }
+ * @param {Object} eventData - Dados do evento { titulo, descricao, dataInicio, dataFim, local, recorrencia, diasSemana }
  */
 async function createGenericCalendarEvent(userId, eventData) {
   try {
@@ -339,7 +339,7 @@ async function createGenericCalendarEvent(userId, eventData) {
       reminders: {
         useDefault: false,
         overrides: [
-          { method: 'popup', minutes: 1440 }, // 1 dia antes
+          { method: 'popup', minutes: 5 }, // 5 min antes (padrão para rotinas)
           { method: 'popup', minutes: 30 } // 30 min antes
         ]
       }
@@ -350,12 +350,39 @@ async function createGenericCalendarEvent(userId, eventData) {
       event.location = eventData.local;
     }
 
+    // Adicionar recorrência se fornecida
+    if (eventData.recorrencia) {
+      let rrule = '';
+      
+      if (eventData.recorrencia === 'DAILY') {
+        rrule = 'FREQ=DAILY';
+      } else if (eventData.recorrencia === 'WEEKLY') {
+        if (eventData.diasSemana && eventData.diasSemana.length > 0) {
+          rrule = `FREQ=WEEKLY;BYDAY=${eventData.diasSemana.join(',')}`;
+        } else {
+          rrule = 'FREQ=WEEKLY';
+        }
+      } else if (eventData.recorrencia === 'MONTHLY') {
+        rrule = 'FREQ=MONTHLY';
+      } else if (eventData.recorrencia === 'YEARLY') {
+        rrule = 'FREQ=YEARLY';
+      }
+      
+      if (rrule) {
+        event.recurrence = [`RRULE:${rrule}`];
+        console.log('📅 Evento recorrente configurado:', rrule);
+      }
+    }
+
     const response = await calendar.events.insert({
       calendarId: 'primary',
       resource: event
     });
 
     console.log(`✅ Evento genérico criado no Google Calendar! ID: ${response.data.id}`);
+    if (eventData.recorrencia) {
+      console.log(`📅 Evento recorrente: ${eventData.recorrencia}`);
+    }
     
     return {
       success: true,

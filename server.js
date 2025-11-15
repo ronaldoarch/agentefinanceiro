@@ -1456,7 +1456,9 @@ app.post('/api/chat', requireAuth, async (req, res) => {
                 descricao: evento.descricao,
                 dataInicio: evento.dataInicio,
                 dataFim: evento.dataFim,
-                local: evento.local
+                local: evento.local,
+                recorrencia: evento.recorrencia || null,
+                diasSemana: evento.diasSemana || null
               });
               
               console.log(`✅ EVENTO CRIADO NO GOOGLE CALENDAR! ID: ${resultado.eventId}`);
