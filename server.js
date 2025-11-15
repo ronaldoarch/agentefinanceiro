@@ -1104,16 +1104,17 @@ app.get('/api/google/status', requireAuth, async (req, res) => {
     if (connected) {
       try {
         email = await googleCalendarService.getConnectedEmail(userId);
-        // Se não conseguiu buscar email, pode ser que o token esteja inválido
-        // Mas não vamos desconectar aqui, apenas retornar que não está conectado
+        // Se não conseguiu buscar email, o token está inválido
         if (!email) {
-          console.log('⚠️ Não foi possível buscar email, token pode estar inválido');
           connected = false;
         }
       } catch (emailError) {
-        console.error('❌ Erro ao buscar email do Google:', emailError.message);
-        // Se der erro 401, o token está inválido - marcar como desconectado
+        // Erro 401 é esperado quando token está inválido - não logar como erro
         if (emailError.code === 401 || emailError.status === 401) {
+          connected = false;
+        } else {
+          // Apenas logar outros erros
+          console.error('❌ Erro ao buscar email do Google:', emailError.message);
           connected = false;
         }
       }

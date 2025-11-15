@@ -141,9 +141,11 @@ async function getAuthenticatedClient(userId) {
   const tokenExpirado = tokens.expiry_date && tokens.expiry_date < agora;
   
   if (tokenExpirado) {
-    console.log('🔄 Token expirado, renovando...');
+    console.log('🔄 Token do Google Calendar expirado, tentando renovar...');
     try {
       if (!tokens.refresh_token) {
+        // Sem refresh token, precisa reconectar
+        await disconnectGoogleCalendar(userId);
         throw new Error('Refresh token não encontrado. Usuário precisa reconectar.');
       }
       
@@ -152,10 +154,14 @@ async function getAuthenticatedClient(userId) {
       await saveUserTokens(userId, credentials);
       oauth2Client.setCredentials(credentials);
     } catch (refreshError) {
-      console.error('❌ Erro ao renovar token:', refreshError.message);
-      // Se falhar ao renovar, desconectar o usuário
-      await disconnectGoogleCalendar(userId);
-      throw new Error('Token expirado e não foi possível renovar. Por favor, reconecte o Google Calendar.');
+      // Erro ao renovar - desconectar silenciosamente
+      console.log('⚠️ Não foi possível renovar token, desconectando...');
+      try {
+        await disconnectGoogleCalendar(userId);
+      } catch (disconnectError) {
+        // Ignorar erros ao desconectar
+      }
+      throw new Error('Token expirado. Por favor, reconecte o Google Calendar.');
     }
   }
 
@@ -423,14 +429,19 @@ async function getConnectedEmail(userId) {
     const response = await oauth2.userinfo.get();
     return response.data.email;
   } catch (error) {
-    console.error('❌ Erro ao buscar email do Google:', error.message);
-    
-    // Se for erro 401, o token está inválido - desconectar
+    // Se for erro 401, o token está inválido - desconectar silenciosamente
     if (error.code === 401 || error.status === 401) {
-      console.log('🔌 Token inválido, desconectando Google Calendar...');
-      await disconnectGoogleCalendar(userId);
+      console.log('⚠️ Token do Google Calendar inválido, desconectando...');
+      try {
+        await disconnectGoogleCalendar(userId);
+      } catch (disconnectError) {
+        // Ignorar erros ao desconectar
+      }
+      return null;
     }
     
+    // Para outros erros, logar mas não quebrar
+    console.error('❌ Erro ao buscar email do Google:', error.message);
     return null;
   }
 }
