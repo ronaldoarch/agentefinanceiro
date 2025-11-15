@@ -1078,9 +1078,16 @@ app.get('/api/google/callback', async (req, res) => {
     const tokens = await googleCalendarService.getTokensFromCode(code);
     console.log('✅ Tokens recebidos do Google!');
     
+    // Converter userId para número (state vem como string)
+    const userId = parseInt(state, 10);
+    if (isNaN(userId)) {
+      console.error('❌ userId inválido:', state);
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/?google_error=invalid_user`);
+    }
+    
     // Salvar tokens no banco
-    console.log('💾 Salvando tokens no banco...');
-    await googleCalendarService.saveUserTokens(state, tokens);
+    console.log('💾 Salvando tokens no banco para usuário:', userId);
+    await googleCalendarService.saveUserTokens(userId, tokens);
     console.log('✅ Tokens salvos com sucesso!');
 
     // Redirecionar para o frontend com sucesso
