@@ -540,28 +540,6 @@ function Upgrade({ onClose, onPlanChanged }) {
                 🔗 Abrir Página de Pagamento
               </button>
               
-              <button 
-                className="btn-primary" 
-                onClick={handleManualCheck}
-                disabled={loading}
-                style={{
-                  padding: '14px 25px',
-                  borderRadius: '10px',
-                  fontSize: '1rem',
-                  fontWeight: '600',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  opacity: loading ? 0.7 : 1,
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: 'white',
-                  border: 'none',
-                  boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
-                  transition: 'all 0.3s'
-                }}
-                title="Ativar plano instantaneamente (modo teste)"
-              >
-                {loading ? '⏳ Ativando Plano...' : '✅ Ativar Plano Agora'}
-              </button>
-              
               {process.env.NODE_ENV !== 'production' && (
                 <button 
                   className="btn-test" 
