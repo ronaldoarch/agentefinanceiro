@@ -135,9 +135,9 @@ function WhatsAppControl({ whatsappStatus, onStatusChange }) {
           <div className="number-display">
             <div className="number-icon">📱</div>
             <div className="number-info">
-              <h3>+55 62 9507-3443</h3>
+              <h3>WhatsApp do Agente</h3>
               <p className="number-description">
-                Salve este número no seu WhatsApp e envie suas transações financeiras diretamente!
+                Envie suas transações financeiras diretamente pelo WhatsApp! Qualquer número pode usar o agente.
               </p>
             </div>
           </div>
@@ -146,8 +146,8 @@ function WhatsAppControl({ whatsappStatus, onStatusChange }) {
             <h4>📋 Como usar:</h4>
             <ol>
               <li>Abra o WhatsApp no seu celular</li>
-              <li>Salve o número <strong>+55 62 9507-3443</strong> nos seus contatos</li>
-              <li>Envie mensagens com suas transações financeiras</li>
+              <li>Envie mensagens com suas transações financeiras para o número conectado</li>
+              <li>O agente processará automaticamente suas mensagens</li>
               <li>Exemplos: "Gastei R$ 50 no mercado" ou "Recebi R$ 1000 de salário"</li>
             </ol>
           </div>
