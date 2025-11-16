@@ -1,12 +1,17 @@
 .header {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px var(--shadow);
   padding: 20px 0;
   margin-bottom: 30px;
   position: sticky;
   top: 0;
   z-index: 100;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+body.dark-mode .header {
+  background: rgba(31, 41, 55, 0.95);
 }
 
 /* Remove sticky em tablets e mobile para não atrapalhar visualização */
@@ -30,8 +35,9 @@
 
 .header-left h1 {
   font-size: 28px;
-  color: #2d3748;
+  color: var(--text-primary);
   margin-bottom: 8px;
+  transition: color 0.3s ease;
 }
 
 .status {
@@ -42,7 +48,8 @@
   font-weight: 500;
   padding: 6px 12px;
   border-radius: 20px;
-  background: #f7fafc;
+  background: var(--bg-tertiary);
+  transition: background 0.3s ease;
 }
 
 .status.connected {
@@ -89,20 +96,20 @@
   border-radius: 12px;
   font-size: 16px;
   font-weight: 500;
-  color: #64748b;
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .nav-tab:hover {
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 
 .nav-tab.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--accent);
   color: white;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
 }
 
 .header-info {
@@ -120,8 +127,9 @@
 
 .user-name {
   font-size: 14px;
-  color: #333;
+  color: var(--text-primary);
   font-weight: 500;
+  transition: color 0.3s ease;
 }
 
 .user-plan {
@@ -150,6 +158,28 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.btn-theme-toggle {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 10px;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 45px;
+  height: 45px;
+}
+
+.btn-theme-toggle:hover {
+  background: var(--accent);
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px var(--shadow);
 }
 
 .btn-upgrade,
@@ -195,12 +225,12 @@
 }
 
 .btn-logout {
-  background: #f1f5f9;
-  color: #64748b;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
 }
 
 .btn-logout:hover {
-  background: #ef4444;
+  background: var(--danger);
   color: white;
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);

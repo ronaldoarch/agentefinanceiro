@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import Upgrade from './Upgrade';
 import './Header.css';
 
 function Header({ whatsappStatus, activeTab, setActiveTab }) {
   const { user, logout, isAdmin, refreshUser } = useAuth();
+  const { darkMode, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [showUpgrade, setShowUpgrade] = useState(false);
 
@@ -75,6 +77,18 @@ function Header({ whatsappStatus, activeTab, setActiveTab }) {
             📅 Lembretes
           </button>
           <button 
+            className={`nav-tab ${activeTab === 'contas' ? 'active' : ''}`}
+            onClick={() => setActiveTab('contas')}
+          >
+            💳 Contas
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'metas' ? 'active' : ''}`}
+            onClick={() => setActiveTab('metas')}
+          >
+            🎯 Metas
+          </button>
+          <button 
             className={`nav-tab ${activeTab === 'integracoes' ? 'active' : ''}`}
             onClick={() => setActiveTab('integracoes')}
           >
@@ -95,6 +109,13 @@ function Header({ whatsappStatus, activeTab, setActiveTab }) {
         </nav>
 
         <div className="header-actions">
+          <button 
+            className="btn-theme-toggle"
+            onClick={toggleTheme}
+            title={darkMode ? 'Modo Claro' : 'Modo Escuro'}
+          >
+            {darkMode ? '☀️' : '🌙'}
+          </button>
           {user && user.plan !== 'enterprise' && (
             <button 
               className="btn-upgrade"

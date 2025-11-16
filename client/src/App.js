@@ -8,6 +8,8 @@ import Dashboard from './components/Dashboard';
 import Transacoes from './components/Transacoes';
 import Alertas from './components/Alertas';
 import Lembretes from './components/Lembretes';
+import Contas from './components/Contas';
+import Metas from './components/Metas';
 import Integracoes from './components/Integracoes';
 import Header from './components/Header';
 import WhatsAppControl from './components/WhatsAppControl';
@@ -184,6 +186,14 @@ function MainApp() {
 
         {activeTab === 'lembretes' && (
           <Lembretes />
+        )}
+
+        {activeTab === 'contas' && (
+          <Contas />
+        )}
+
+        {activeTab === 'metas' && (
+          <Metas />
         )}
 
         {activeTab === 'integracoes' && (
