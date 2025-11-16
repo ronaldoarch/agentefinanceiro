@@ -163,9 +163,6 @@ function WhatsAppControl({ whatsappStatus, onStatusChange }) {
             </ul>
           </div>
 
-          <div className="security-info">
-            <p>🔒 <strong>Segurança:</strong> Apenas o número autorizado pode enviar transações para o agente.</p>
-          </div>
         </div>
       </div>
     );
@@ -245,13 +242,6 @@ function WhatsAppControl({ whatsappStatus, onStatusChange }) {
             </ol>
           </div>
         )}
-      </div>
-
-      <div className="security-info">
-        <p>🔒 <strong>Número Autorizado:</strong> +55 62 9507-3443</p>
-        <p className="security-note">
-          Apenas este número pode enviar transações para o bot
-        </p>
       </div>
     </div>
   );

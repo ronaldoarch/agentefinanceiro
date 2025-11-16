@@ -8,18 +8,6 @@ let sock;
 let connected = false;
 let currentQR = null; // Armazenar QR Code atual
 
-// Número autorizado (apenas este número pode usar o bot)
-const NUMERO_AUTORIZADO = '5562950734433'; // +55 62 9507-3443
-
-// Função para verificar se o número é autorizado
-function isNumeroAutorizado(remoteJid) {
-  // Extrair apenas os dígitos do número
-  const numeroLimpo = remoteJid.replace(/\D/g, '');
-  
-  // Verificar se contém o número autorizado
-  return numeroLimpo.includes(NUMERO_AUTORIZADO);
-}
-
 // Inicializar conexão com WhatsApp
 async function initialize(usePairingCode = false) {
   try {
@@ -107,18 +95,12 @@ async function processarMensagem(msg) {
     // Ignorar mensagens de grupo
     if (msg.key.remoteJid.endsWith('@g.us')) return;
 
-    // ⚠️ VERIFICAR SE O NÚMERO É AUTORIZADO
-    if (!isNumeroAutorizado(msg.key.remoteJid)) {
-      console.log(`🚫 Mensagem ignorada de número não autorizado: ${msg.key.remoteJid}`);
-      return;
-    }
-
     const mensagemTexto = msg.message?.conversation || 
                           msg.message?.extendedTextMessage?.text || '';
 
     if (!mensagemTexto) return;
 
-    console.log(`\n📩 Mensagem recebida de número autorizado: "${mensagemTexto}"`);
+    console.log(`\n📩 Mensagem recebida: "${mensagemTexto}"`);
 
     // Verificar comandos especiais
     if (mensagemTexto.toLowerCase().includes('resumo')) {
