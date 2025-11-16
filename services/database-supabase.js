@@ -730,6 +730,274 @@ async function getActiveSubscription(userId) {
   return data;
 }
 
+// ================== CONTAS (CARTÕES) ==================
+
+async function createConta(userId, contaData) {
+  const { data, error } = await supabase
+    .from('contas')
+    .insert({
+      user_id: userId,
+      nome: contaData.nome,
+      tipo: contaData.tipo || 'cartao_credito',
+      banco: contaData.banco || null,
+      ultimos_4_digitos: contaData.ultimos_4_digitos || null,
+      limite: contaData.limite || null,
+      saldo_inicial: contaData.saldo_inicial || 0,
+      cor: contaData.cor || '#6366f1',
+      icone: contaData.icone || '💳',
+      ativo: true
+    })
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+}
+
+async function getContas(userId) {
+  const { data, error } = await supabase
+    .from('contas')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('ativo', true)
+    .order('created_at', { ascending: false });
+  
+  if (error) throw error;
+  return data || [];
+}
+
+async function getContaById(userId, contaId) {
+  const { data, error } = await supabase
+    .from('contas')
+    .select('*')
+    .eq('id', contaId)
+    .eq('user_id', userId)
+    .single();
+  
+  if (error) return null;
+  return data;
+}
+
+async function updateConta(userId, contaId, contaData) {
+  const { data, error } = await supabase
+    .from('contas')
+    .update({
+      ...contaData,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', contaId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+}
+
+async function deleteConta(userId, contaId) {
+  // Soft delete (marcar como inativo)
+  const { data, error } = await supabase
+    .from('contas')
+    .update({ ativo: false, updated_at: new Date().toISOString() })
+    .eq('id', contaId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+}
+
+// ================== METAS FINANCEIRAS ==================
+
+async function createMeta(userId, metaData) {
+  const { data, error } = await supabase
+    .from('metas_financeiras')
+    .insert({
+      user_id: userId,
+      titulo: metaData.titulo,
+      tipo: metaData.tipo, // 'economizar', 'gastar_menos', 'gastar_mais', 'receber_mais'
+      categoria: metaData.categoria || null,
+      valor_meta: metaData.valor_meta,
+      valor_atual: 0,
+      periodo: metaData.periodo || 'mensal',
+      data_inicio: metaData.data_inicio,
+      data_fim: metaData.data_fim || null,
+      conta_id: metaData.conta_id || null,
+      ativo: true,
+      concluida: false
+    })
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+}
+
+async function getMetas(userId, apenasAtivas = true) {
+  let query = supabase
+    .from('metas_financeiras')
+    .select('*')
+    .eq('user_id', userId);
+  
+  if (apenasAtivas) {
+    query = query.eq('ativo', true);
+  }
+  
+  const { data, error } = await query.order('created_at', { ascending: false });
+  
+  if (error) throw error;
+  return data || [];
+}
+
+async function getMetaById(userId, metaId) {
+  const { data, error } = await supabase
+    .from('metas_financeiras')
+    .select('*')
+    .eq('id', metaId)
+    .eq('user_id', userId)
+    .single();
+  
+  if (error) return null;
+  return data;
+}
+
+async function updateMeta(userId, metaId, metaData) {
+  const { data, error } = await supabase
+    .from('metas_financeiras')
+    .update({
+      ...metaData,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', metaId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+}
+
+async function atualizarProgressoMeta(metaId, novoValor) {
+  // Buscar meta atual
+  const { data: meta, error: metaError } = await supabase
+    .from('metas_financeiras')
+    .select('*')
+    .eq('id', metaId)
+    .single();
+  
+  if (metaError) throw metaError;
+  
+  const valorAnterior = meta.valor_atual || 0;
+  const diferenca = novoValor - valorAnterior;
+  
+  // Atualizar valor atual
+  const { data: updatedMeta, error: updateError } = await supabase
+    .from('metas_financeiras')
+    .update({
+      valor_atual: novoValor,
+      concluida: novoValor >= meta.valor_meta,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', metaId)
+    .select()
+    .single();
+  
+  if (updateError) throw updateError;
+  
+  // Registrar progresso
+  await supabase
+    .from('progresso_metas')
+    .insert({
+      meta_id: metaId,
+      valor_anterior: valorAnterior,
+      valor_novo: novoValor,
+      diferenca: diferenca
+    });
+  
+  return updatedMeta;
+}
+
+async function deleteMeta(userId, metaId) {
+  // Soft delete
+  const { data, error } = await supabase
+    .from('metas_financeiras')
+    .update({ ativo: false, updated_at: new Date().toISOString() })
+    .eq('id', metaId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+}
+
+// Calcular progresso das metas baseado nas transações
+async function calcularProgressoMetas(userId) {
+  const metas = await getMetas(userId, true);
+  const hoje = new Date();
+  
+  for (const meta of metas) {
+    if (meta.concluida) continue;
+    
+    // Calcular período
+    const dataInicio = new Date(meta.data_inicio);
+    let dataFim = meta.data_fim ? new Date(meta.data_fim) : new Date();
+    
+    // Ajustar para período
+    if (meta.periodo === 'mensal') {
+      dataFim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+    } else if (meta.periodo === 'semanal') {
+      const diasRestantes = 7 - (hoje.getDay() || 7);
+      dataFim = new Date(hoje);
+      dataFim.setDate(hoje.getDate() + diasRestantes);
+    } else if (meta.periodo === 'anual') {
+      dataFim = new Date(hoje.getFullYear(), 11, 31);
+    }
+    
+    // Buscar transações do período
+    let query = supabase
+      .from('transacoes')
+      .select('valor, tipo')
+      .eq('user_id', userId)
+      .gte('data', dataInicio.toISOString().split('T')[0])
+      .lte('data', dataFim.toISOString().split('T')[0]);
+    
+    if (meta.conta_id) {
+      query = query.eq('conta_id', meta.conta_id);
+    }
+    
+    if (meta.categoria) {
+      query = query.eq('categoria', meta.categoria);
+    }
+    
+    const { data: transacoes, error } = await query;
+    
+    if (error) continue;
+    
+    // Calcular valor atual baseado no tipo de meta
+    let valorAtual = 0;
+    
+    if (meta.tipo === 'economizar') {
+      // Soma de receitas - despesas
+      const receitas = transacoes.filter(t => t.tipo === 'receita').reduce((sum, t) => sum + parseFloat(t.valor), 0);
+      const despesas = transacoes.filter(t => t.tipo === 'despesa').reduce((sum, t) => sum + parseFloat(t.valor), 0);
+      valorAtual = receitas - despesas;
+    } else if (meta.tipo === 'gastar_menos') {
+      // Total de despesas
+      valorAtual = transacoes.filter(t => t.tipo === 'despesa').reduce((sum, t) => sum + parseFloat(t.valor), 0);
+    } else if (meta.tipo === 'gastar_mais' || meta.tipo === 'receber_mais') {
+      // Total de receitas
+      valorAtual = transacoes.filter(t => t.tipo === 'receita').reduce((sum, t) => sum + parseFloat(t.valor), 0);
+    }
+    
+    // Atualizar progresso
+    await atualizarProgressoMeta(meta.id, valorAtual);
+  }
+  
+  return metas;
+}
+
 // Expor o cliente Supabase para queries customizadas
 function getSupabaseClient() {
   return supabase;
@@ -737,7 +1005,40 @@ function getSupabaseClient() {
 
 module.exports = {
   init,
-  addTransacao,
+  addTransacao: async (userId, tipo, valor, categoria, descricao, mensagemOriginal, contaId = null) => {
+    console.log(`💾 SALVANDO TRANSAÇÃO no Supabase`);
+    console.log(`   User ID: ${userId}, Tipo: ${tipo}, Valor: R$ ${valor}, Conta ID: ${contaId || 'N/A'}`);
+    
+    const { data, error } = await supabase
+      .from('transacoes')
+      .insert({
+        user_id: userId,
+        tipo,
+        valor,
+        categoria,
+        descricao,
+        mensagem_original: mensagemOriginal,
+        conta_id: contaId
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('❌ Erro ao salvar transação:', error);
+      throw error;
+    }
+    
+    console.log(`✅ TRANSAÇÃO SALVA no Supabase! ID: ${data.id}`);
+    
+    // Atualizar progresso das metas
+    try {
+      await calcularProgressoMetas(userId);
+    } catch (metaError) {
+      console.warn('⚠️ Erro ao atualizar metas:', metaError.message);
+    }
+    
+    return data.id;
+  },
   getTransacoes,
   getTransacoesPorPeriodo,
   deleteTransacao,
@@ -779,6 +1080,20 @@ module.exports = {
   getLembretesPendentes,
   marcarLembreteNotificado,
   getLembretesVencidos,
-  getSupabaseClient
+  getSupabaseClient,
+  // Contas
+  createConta,
+  getContas,
+  getContaById,
+  updateConta,
+  deleteConta,
+  // Metas
+  createMeta,
+  getMetas,
+  getMetaById,
+  updateMeta,
+  atualizarProgressoMeta,
+  calcularProgressoMetas,
+  deleteMeta
 };
 
