@@ -96,14 +96,12 @@ function Header({ whatsappStatus, activeTab, setActiveTab }) {
           >
             🔗 Integrações
           </button>
-          {isAdmin && (
-            <button 
-              className={`nav-tab ${activeTab === 'whatsapp' ? 'active' : ''}`}
-              onClick={() => setActiveTab('whatsapp')}
-            >
-              📱 WhatsApp
-            </button>
-          )}
+          <button 
+            className={`nav-tab ${activeTab === 'whatsapp' ? 'active' : ''}`}
+            onClick={() => setActiveTab('whatsapp')}
+          >
+            📱 WhatsApp
+          </button>
           <button 
             className={`nav-tab ${activeTab === 'chat' ? 'active' : ''}`}
             onClick={() => setActiveTab('chat')}
