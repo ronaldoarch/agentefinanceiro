@@ -1071,6 +1071,231 @@ app.delete('/api/lembretes/:id', requireAuth, async (req, res) => {
   }
 });
 
+// ================== ROTAS DE CONTAS (CARTÕES) ==================
+
+// Criar nova conta
+app.post('/api/contas', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { nome, tipo, banco, ultimos_4_digitos, limite, saldo_inicial, cor, icone } = req.body;
+    
+    if (!nome) {
+      return res.status(400).json({ error: 'Nome da conta é obrigatório' });
+    }
+    
+    const conta = await db.createConta(userId, {
+      nome,
+      tipo: tipo || 'cartao_credito',
+      banco,
+      ultimos_4_digitos,
+      limite,
+      saldo_inicial: saldo_inicial || 0,
+      cor: cor || '#6366f1',
+      icone: icone || '💳'
+    });
+    
+    res.json({ success: true, conta });
+  } catch (error) {
+    console.error('❌ Erro ao criar conta:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Listar todas as contas do usuário
+app.get('/api/contas', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const contas = await db.getContas(userId);
+    res.json(contas);
+  } catch (error) {
+    console.error('❌ Erro ao buscar contas:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Buscar conta específica
+app.get('/api/contas/:id', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    
+    const conta = await db.getContaById(userId, id);
+    
+    if (!conta) {
+      return res.status(404).json({ error: 'Conta não encontrada' });
+    }
+    
+    res.json(conta);
+  } catch (error) {
+    console.error('❌ Erro ao buscar conta:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Atualizar conta
+app.put('/api/contas/:id', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const updates = req.body;
+    
+    const conta = await db.updateConta(userId, id, updates);
+    
+    res.json({ success: true, conta });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar conta:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Deletar conta (soft delete)
+app.delete('/api/contas/:id', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    
+    await db.deleteConta(userId, id);
+    
+    res.json({ success: true, message: 'Conta deletada com sucesso' });
+  } catch (error) {
+    console.error('❌ Erro ao deletar conta:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ================== ROTAS DE METAS FINANCEIRAS ==================
+
+// Criar nova meta
+app.post('/api/metas', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { titulo, tipo, categoria, valor_meta, periodo, data_inicio, data_fim, conta_id } = req.body;
+    
+    if (!titulo || !tipo || !valor_meta || !data_inicio) {
+      return res.status(400).json({ 
+        error: 'Título, tipo, valor da meta e data de início são obrigatórios' 
+      });
+    }
+    
+    // Validar tipo
+    const tiposValidos = ['economizar', 'gastar_menos', 'gastar_mais', 'receber_mais'];
+    if (!tiposValidos.includes(tipo)) {
+      return res.status(400).json({ error: 'Tipo de meta inválido' });
+    }
+    
+    const meta = await db.createMeta(userId, {
+      titulo,
+      tipo,
+      categoria: categoria || null,
+      valor_meta: parseFloat(valor_meta),
+      periodo: periodo || 'mensal',
+      data_inicio,
+      data_fim: data_fim || null,
+      conta_id: conta_id || null
+    });
+    
+    // Calcular progresso inicial
+    await db.calcularProgressoMetas(userId);
+    
+    res.json({ success: true, meta });
+  } catch (error) {
+    console.error('❌ Erro ao criar meta:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Listar todas as metas do usuário
+app.get('/api/metas', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { apenas_ativas } = req.query;
+    
+    const apenasAtivas = apenas_ativas !== 'false'; // default true
+    const metas = await db.getMetas(userId, apenasAtivas);
+    
+    res.json(metas);
+  } catch (error) {
+    console.error('❌ Erro ao buscar metas:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Buscar meta específica
+app.get('/api/metas/:id', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    
+    const meta = await db.getMetaById(userId, id);
+    
+    if (!meta) {
+      return res.status(404).json({ error: 'Meta não encontrada' });
+    }
+    
+    res.json(meta);
+  } catch (error) {
+    console.error('❌ Erro ao buscar meta:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Atualizar meta
+app.put('/api/metas/:id', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const updates = req.body;
+    
+    // Se atualizar valor_meta, recalcular progresso
+    if (updates.valor_meta !== undefined) {
+      updates.valor_meta = parseFloat(updates.valor_meta);
+    }
+    
+    const meta = await db.updateMeta(userId, id, updates);
+    
+    // Recalcular progresso após atualização
+    await db.calcularProgressoMetas(userId);
+    
+    res.json({ success: true, meta });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar meta:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Deletar meta (soft delete)
+app.delete('/api/metas/:id', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    
+    await db.deleteMeta(userId, id);
+    
+    res.json({ success: true, message: 'Meta deletada com sucesso' });
+  } catch (error) {
+    console.error('❌ Erro ao deletar meta:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Recalcular progresso de todas as metas
+app.post('/api/metas/recalcular', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const metas = await db.calcularProgressoMetas(userId);
+    
+    res.json({ 
+      success: true, 
+      message: 'Progresso das metas recalculado',
+      metas 
+    });
+  } catch (error) {
+    console.error('❌ Erro ao recalcular metas:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ================== ROTAS DE GOOGLE CALENDAR ==================
 
 // Obter URL de autorização do Google
@@ -1383,13 +1608,32 @@ app.post('/api/chat', requireAuth, async (req, res) => {
           console.log(`💰 [${i+1}/${transacoesDetectadas.length}] Salvando:`, JSON.stringify(transacao));
           
           try {
+            // Tentar detectar conta na mensagem (opcional)
+            let contaId = null;
+            if (transacao.conta) {
+              try {
+                const contas = await db.getContas(userId);
+                const contaEncontrada = contas.find(c => 
+                  c.nome.toLowerCase().includes(transacao.conta.toLowerCase()) ||
+                  (c.banco && c.banco.toLowerCase().includes(transacao.conta.toLowerCase()))
+                );
+                if (contaEncontrada) {
+                  contaId = contaEncontrada.id;
+                  console.log(`💳 Conta detectada: ${contaEncontrada.nome} (ID: ${contaId})`);
+                }
+              } catch (contaError) {
+                console.warn('⚠️ Erro ao buscar conta:', contaError.message);
+              }
+            }
+            
             const transacaoId = await db.addTransacao(
               userId, // IMPORTANTE: user_id do usuário autenticado
               transacao.tipo,
               transacao.valor,
               transacao.categoria,
               transacao.descricao,
-              `Chat IA: ${message}`
+              `Chat IA: ${message}`,
+              contaId // Adicionar conta_id se detectado
             );
             
             console.log(`✅ TRANSAÇÃO SALVA NO BANCO! ID: ${transacaoId}`);
@@ -1730,13 +1974,31 @@ app.post('/api/chat/audio', requireAuth, checkPlanLimit('audio_enabled'), upload
         
         // Salvar TODAS as transações
         for (const transacao of transacoesDetectadas) {
+          // Tentar detectar conta na transcrição (opcional)
+          let contaId = null;
+          if (transacao.conta) {
+            try {
+              const contas = await db.getContas(userId);
+              const contaEncontrada = contas.find(c => 
+                c.nome.toLowerCase().includes(transacao.conta.toLowerCase()) ||
+                (c.banco && c.banco.toLowerCase().includes(transacao.conta.toLowerCase()))
+              );
+              if (contaEncontrada) {
+                contaId = contaEncontrada.id;
+              }
+            } catch (contaError) {
+              console.warn('⚠️ Erro ao buscar conta:', contaError.message);
+            }
+          }
+          
           const transacaoId = await db.addTransacao(
             userId,
             transacao.tipo,
             transacao.valor,
             transacao.categoria,
             transacao.descricao,
-            `Chat IA (áudio): ${transcricao}`
+            `Chat IA (áudio): ${transcricao}`,
+            contaId // Adicionar conta_id se detectado
           );
           
           console.log('✅ Transação salva com ID:', transacaoId);

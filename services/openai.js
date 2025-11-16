@@ -354,10 +354,20 @@ Formato de resposta:
       "tipo": "receita" ou "despesa",
       "valor": número decimal,
       "categoria": categoria válida,
-      "descricao": descrição clara
+      "descricao": descrição clara,
+      "conta": nome da conta/cartão mencionado (opcional, null se não mencionar)
     }
   ]
 }
+
+DETECÇÃO DE CONTA:
+- Se mencionar "com o cartão X", "no cartão Y", "paguei com X" → conta: "X"
+- Se mencionar banco (ex: "Nubank", "Itaú", "Inter") → conta: nome do banco
+- Se mencionar "dinheiro", "carteira", "pix" → conta: null (não é cartão)
+- Exemplos:
+  "Gastei 50 no mercado com o Nubank" → conta: "Nubank"
+  "Paguei 200 de conta com o cartão Itaú" → conta: "Itaú"
+  "Comprei café com dinheiro" → conta: null
 
 Categorias válidas:
 Despesas: Alimentação, Transporte, Moradia, Saúde, Educação, Lazer, Compras, Contas, Outros
