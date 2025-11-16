@@ -771,8 +771,8 @@ app.get('/api/whatsapp/status', (req, res) => {
   });
 });
 
-// Desconectar WhatsApp
-app.post('/api/whatsapp/disconnect', async (req, res) => {
+// Desconectar WhatsApp (apenas admin)
+app.post('/api/whatsapp/disconnect', requireAdmin, async (req, res) => {
   try {
     const result = await whatsappService.disconnect();
     res.json({ 
@@ -784,8 +784,8 @@ app.post('/api/whatsapp/disconnect', async (req, res) => {
   }
 });
 
-// Reconectar WhatsApp
-app.post('/api/whatsapp/reconnect', async (req, res) => {
+// Reconectar WhatsApp (apenas admin)
+app.post('/api/whatsapp/reconnect', requireAdmin, async (req, res) => {
   try {
     const result = await whatsappService.reconnect();
     res.json({ 
@@ -797,8 +797,8 @@ app.post('/api/whatsapp/reconnect', async (req, res) => {
   }
 });
 
-// Obter QR Code atual
-app.get('/api/whatsapp/qr', (req, res) => {
+// Obter QR Code atual (apenas admin)
+app.get('/api/whatsapp/qr', requireAdmin, (req, res) => {
   try {
     const qr = whatsappService.getCurrentQR();
     if (qr) {

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
+import { useAuth } from '../context/AuthContext';
 import './WhatsAppControl.css';
 
 function WhatsAppControl({ whatsappStatus, onStatusChange }) {
+  const { isAdmin } = useAuth();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [qrCode, setQrCode] = useState(null);
@@ -123,6 +125,53 @@ function WhatsAppControl({ whatsappStatus, onStatusChange }) {
     }
   };
 
+  // Se não for admin, mostrar apenas o número do WhatsApp
+  if (!isAdmin) {
+    return (
+      <div className="whatsapp-control-card card">
+        <h2 className="card-title">📱 WhatsApp do Agente</h2>
+        
+        <div className="whatsapp-number-section">
+          <div className="number-display">
+            <div className="number-icon">📱</div>
+            <div className="number-info">
+              <h3>+55 62 9507-3443</h3>
+              <p className="number-description">
+                Salve este número no seu WhatsApp e envie suas transações financeiras diretamente!
+              </p>
+            </div>
+          </div>
+
+          <div className="instructions-box">
+            <h4>📋 Como usar:</h4>
+            <ol>
+              <li>Abra o WhatsApp no seu celular</li>
+              <li>Salve o número <strong>+55 62 9507-3443</strong> nos seus contatos</li>
+              <li>Envie mensagens com suas transações financeiras</li>
+              <li>Exemplos: "Gastei R$ 50 no mercado" ou "Recebi R$ 1000 de salário"</li>
+            </ol>
+          </div>
+
+          <div className="features-box">
+            <h4>✨ Funcionalidades:</h4>
+            <ul>
+              <li>✅ Registre receitas e despesas via mensagem</li>
+              <li>✅ Categorização automática inteligente</li>
+              <li>✅ Receba alertas sobre seus gastos</li>
+              <li>✅ Crie lembretes financeiros</li>
+              <li>✅ Acompanhe suas metas financeiras</li>
+            </ul>
+          </div>
+
+          <div className="security-info">
+            <p>🔒 <strong>Segurança:</strong> Apenas o número autorizado pode enviar transações para o agente.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Se for admin, mostrar controle completo
   return (
     <div className="whatsapp-control-card card">
       <h2 className="card-title">📱 Controle do WhatsApp</h2>

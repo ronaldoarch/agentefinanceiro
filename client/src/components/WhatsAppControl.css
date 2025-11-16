@@ -243,6 +243,107 @@
   }
 }
 
+/* Estilos para usuários não-admin (apenas número do WhatsApp) */
+.whatsapp-number-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.number-display {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 24px;
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  border-radius: 12px;
+  border: 2px solid #0ea5e9;
+}
+
+.number-icon {
+  font-size: 48px;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.number-info h3 {
+  margin: 0 0 8px 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #0c4a6e;
+}
+
+.number-description {
+  margin: 0;
+  color: #0369a1;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.instructions-box,
+.features-box {
+  padding: 20px;
+  background: var(--bg-tertiary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.instructions-box h4,
+.features-box h4 {
+  margin: 0 0 16px 0;
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 600;
+  transition: color 0.3s ease;
+}
+
+.instructions-box ol,
+.features-box ul {
+  margin: 0;
+  padding-left: 24px;
+  color: var(--text-secondary);
+  line-height: 1.8;
+  transition: color 0.3s ease;
+}
+
+.instructions-box li,
+.features-box li {
+  margin-bottom: 10px;
+}
+
+.instructions-box strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.features-box ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.features-box li {
+  padding-left: 24px;
+  position: relative;
+}
+
+.features-box li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  border-radius: 50%;
+}
+
 @media (max-width: 768px) {
   .control-buttons {
     flex-direction: column;
@@ -259,6 +360,15 @@
 
   .instructions ol {
     padding-left: 16px;
+  }
+
+  .number-display {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .number-info h3 {
+    font-size: 24px;
   }
 }
 

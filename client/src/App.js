@@ -58,7 +58,7 @@ function AdminRoute({ children }) {
 }
 
 function MainApp() {
-  const { refreshUser } = useAuth();
+  const { refreshUser, isAdmin } = useAuth();
   const [resumo, setResumo] = useState(null);
   const [transacoes, setTransacoes] = useState([]);
   const [alertas, setAlertas] = useState([]);
@@ -69,23 +69,36 @@ function MainApp() {
   // Carregar dados
   const carregarDados = useCallback(async () => {
     try {
-      const [resumoRes, transacoesRes, alertasRes, statusRes] = await Promise.all([
+      const promises = [
         axios.get('/api/resumo'),
         axios.get('/api/transacoes'),
-        axios.get('/api/alertas'),
-        axios.get('/api/whatsapp/status')
-      ]);
+        axios.get('/api/alertas')
+      ];
 
-      setResumo(resumoRes.data);
-      setTransacoes(transacoesRes.data);
-      setAlertas(alertasRes.data.filter(a => !a.lido));
-      setWhatsappStatus(statusRes.data.connected);
+      // Só buscar status do WhatsApp se for admin
+      if (isAdmin) {
+        promises.push(axios.get('/api/whatsapp/status'));
+      }
+
+      const results = await Promise.all(promises);
+
+      setResumo(results[0].data);
+      setTransacoes(results[1].data);
+      setAlertas(results[2].data.filter(a => !a.lido));
+      
+      // Só atualizar status do WhatsApp se for admin
+      if (isAdmin && results[3]) {
+        setWhatsappStatus(results[3].data.connected);
+      } else {
+        setWhatsappStatus(false);
+      }
+      
       setLoading(false);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       setLoading(false);
     }
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     // Recarregar usuário e dados ao montar o componente

@@ -34,10 +34,12 @@ function Header({ whatsappStatus, activeTab, setActiveTab }) {
         <div className="header-left">
           <h1>💰 Agente Financeiro</h1>
           <div className="header-info">
-            <div className={`status ${whatsappStatus ? 'connected' : 'disconnected'}`}>
-              <span className="status-dot"></span>
-              WhatsApp {whatsappStatus ? 'Conectado' : 'Desconectado'}
-            </div>
+            {isAdmin && (
+              <div className={`status ${whatsappStatus ? 'connected' : 'disconnected'}`}>
+                <span className="status-dot"></span>
+                WhatsApp {whatsappStatus ? 'Conectado' : 'Desconectado'}
+              </div>
+            )}
             {user && (
               <div className="user-info">
                 <span className="user-name">👤 {user.name}</span>
@@ -94,12 +96,14 @@ function Header({ whatsappStatus, activeTab, setActiveTab }) {
           >
             🔗 Integrações
           </button>
-          <button 
-            className={`nav-tab ${activeTab === 'whatsapp' ? 'active' : ''}`}
-            onClick={() => setActiveTab('whatsapp')}
-          >
-            📱 WhatsApp
-          </button>
+          {isAdmin && (
+            <button 
+              className={`nav-tab ${activeTab === 'whatsapp' ? 'active' : ''}`}
+              onClick={() => setActiveTab('whatsapp')}
+            >
+              📱 WhatsApp
+            </button>
+          )}
           <button 
             className={`nav-tab ${activeTab === 'chat' ? 'active' : ''}`}
             onClick={() => setActiveTab('chat')}
