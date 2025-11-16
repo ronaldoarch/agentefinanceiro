@@ -417,7 +417,8 @@ REGRAS:
         tipo: t.tipo,
         valor: parseFloat(t.valor),
         categoria: t.categoria || 'Outros',
-        descricao: t.descricao || mensagem
+        descricao: t.descricao || mensagem,
+        conta: t.conta || null // Nome da conta/cartão mencionado
       }));
     }
 
