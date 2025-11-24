@@ -12,17 +12,29 @@ function WhatsAppControl({ whatsappStatus, onStatusChange }) {
 
   // WebSocket e polling para receber QR Code
   useEffect(() => {
+    if (!isAdmin) return; // Só conectar WebSocket se for admin
+
     // Usar wss:// se a página estiver em https://, senão ws://
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}`;
     console.log('WhatsApp WebSocket:', wsUrl);
     const ws = new WebSocket(wsUrl);
     
+    ws.onopen = () => {
+      console.log('✅ WebSocket conectado para WhatsApp');
+    };
+
+    ws.onerror = (error) => {
+      console.error('❌ Erro no WebSocket:', error);
+    };
+
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log('📨 WebSocket recebeu:', data.type);
         
         if (data.type === 'qr_code' && data.data && data.data.qr) {
+          console.log('✅ QR Code recebido via WebSocket');
           setQrCode(data.data.qr);
           setMessage('✅ QR Code gerado! Escaneie agora!');
         } else if (data.type === 'whatsapp_connected') {
@@ -48,6 +60,7 @@ function WhatsAppControl({ whatsappStatus, onStatusChange }) {
           });
           const data = await response.json();
           if (data.available && data.qr) {
+            console.log('✅ QR Code recebido via polling');
             setQrCode(data.qr);
             setMessage('✅ QR Code gerado! Escaneie agora!');
           }
@@ -61,7 +74,7 @@ function WhatsAppControl({ whatsappStatus, onStatusChange }) {
       ws.close();
       clearInterval(interval);
     };
-  }, [onStatusChange, whatsappStatus, qrCode]);
+  }, [onStatusChange, whatsappStatus, qrCode, isAdmin]);
 
   // Gerar QR Code no canvas quando receber
   useEffect(() => {
