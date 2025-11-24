@@ -63,6 +63,11 @@ async function startServer() {
     lembretesScheduler.start(30); // 30 minutos
     console.log('✅ Scheduler de lembretes iniciado!');
 
+    // Inicializar WhatsApp
+    console.log('📱 Inicializando WhatsApp...');
+    whatsappService.initialize();
+    console.log('✅ WhatsApp inicializado!');
+
     // Criar servidor WebSocket para atualizações em tempo real
     const server = app.listen(PORT, () => {
       console.log(`🚀 Servidor rodando na porta ${PORT}`);
@@ -797,8 +802,8 @@ app.post('/api/whatsapp/reconnect', requireAdmin, async (req, res) => {
   }
 });
 
-// Obter QR Code atual (apenas admin)
-app.get('/api/whatsapp/qr', requireAdmin, (req, res) => {
+// Obter QR Code atual (requer autenticação)
+app.get('/api/whatsapp/qr', requireAuth, (req, res) => {
   try {
     const qr = whatsappService.getCurrentQR();
     if (qr) {

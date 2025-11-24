@@ -108,16 +108,35 @@ function WhatsAppControl({ whatsappStatus, onStatusChange }) {
     setQrCode(null);
 
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch('/api/whatsapp/reconnect', {
-        method: 'POST'
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
       const data = await response.json();
       
       setMessage(data.message + ' Aguarde o QR Code aparecer abaixo...');
       
-      setTimeout(() => {
+      // Aguardar um pouco e tentar buscar o QR Code
+      setTimeout(async () => {
+        try {
+          const qrResponse = await fetch('/api/whatsapp/qr', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          const qrData = await qrResponse.json();
+          if (qrData.available && qrData.qr) {
+            setQrCode(qrData.qr);
+            setMessage('✅ QR Code gerado! Escaneie agora!');
+          }
+        } catch (error) {
+          console.error('Erro ao buscar QR Code:', error);
+        }
         onStatusChange();
-      }, 2000);
+      }, 3000);
     } catch (error) {
       setMessage('Erro ao reconectar: ' + error.message);
     } finally {
