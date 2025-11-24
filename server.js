@@ -107,8 +107,9 @@ serverPromise.then(server => {
   });
   
   // Inicializar WhatsApp
-  // DESABILITADO TEMPORARIAMENTE - Conecte manualmente pela interface
-  // whatsappService.initialize();
+  console.log('📱 Inicializando WhatsApp...');
+  whatsappService.initialize();
+  console.log('✅ WhatsApp inicializado!');
 }).catch(error => {
   console.error('❌ Erro fatal ao iniciar servidor:', error);
   process.exit(1);

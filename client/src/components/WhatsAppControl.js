@@ -38,9 +38,14 @@ function WhatsAppControl({ whatsappStatus, onStatusChange }) {
 
     // Polling para buscar QR Code via API (fallback)
     const interval = setInterval(async () => {
-      if (!whatsappStatus && !qrCode) {
+      if (!whatsappStatus && !qrCode && isAdmin) {
         try {
-          const response = await fetch('/api/whatsapp/qr');
+          const token = localStorage.getItem('token');
+          const response = await fetch('/api/whatsapp/qr', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
           const data = await response.json();
           if (data.available && data.qr) {
             setQrCode(data.qr);
